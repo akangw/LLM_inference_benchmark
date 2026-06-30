@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block title %}排行榜{% endblock %}
+{% block content %}
+<h1>排行榜</h1>
+<p class="hint">两个 endpoint 类型独立排名，不混合。默认只展示 leaderboard_eligible 的正式结果，
+按 goodput_output_tokens_per_second 从高到低排序。</p>
+<div class="card">
+  <h2><a href="/leaderboard/chat_completions">Chat Completions 榜 →</a></h2>
+  <p class="hint">/v1/chat/completions 正式榜单</p>
+</div>
+<div class="card">
+  <h2><a href="/leaderboard/completions">Completions 榜 →</a></h2>
+  <p class="hint">/v1/completions 正式榜单</p>
+</div>
+{% endblock %}

@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block title %}提交 Benchmark{% endblock %}
+{% block content %}
+<h1>提交 Benchmark 任务</h1>
+<div class="card">
+<p class="hint">本平台不托管、不启动模型。请先自行启动 OpenAI 兼容推理服务，再在此提交其地址。</p>
+<form method="post" action="/submit">
+  <label>Endpoint 类型 *</label>
+  <select name="endpoint_type" required>
+    <option value="chat_completions">chat_completions (/v1/chat/completions)</option>
+    <option value="completions">completions (/v1/completions)</option>
+  </select>
+
+  <label>模型名 (model_name) *</label>
+  <input name="model_name" placeholder="qwen32b" required>
+
+  <label>Base URL（可选，与 port 二选一）</label>
+  <input name="base_url" placeholder="http://127.0.0.1:8010/v1">
+  <div class="hint">支持 http://host:port/v1，或直接填端口（如 8010）自动转 http://127.0.0.1:8010/v1</div>
+
+  <label>端口 Port（可选）</label>
+  <input name="port" placeholder="8010">
+
+  <label>API Key（可选，不会被记录/明文展示）</label>
+  <input name="api_key" type="password" placeholder="sk-...">
+
+  <label>Benchmark 模式</label>
+  <select name="benchmark_mode">
+    <option value="smoke">smoke（3 请求，快速验证，不进榜）</option>
+    <option value="public_leaderboard">public_leaderboard（150 请求/并发5，正式榜单）</option>
+    <option value="stress">stress（压力测试，不进榜）</option>
+  </select>
+
+  <label>数据集 Profile</label>
+  <select name="dataset_profile">
+    <option value="llmperf_550_150">llmperf_550_150（固定 550 in / 150 out）</option>
+  </select>
+
+  <label>备注 Notes（可选：引擎/硬件/量化）</label>
+  <textarea name="notes" rows="2" placeholder="engine: vLLM; hardware: 4x910B; quantization: W8A8"></textarea>
+
+  <button type="submit">提交并运行</button>
+</form>
+</div>
+{% endblock %}

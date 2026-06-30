@@ -1,0 +1,25 @@
+name: Nightly
+
+on:
+  schedule:
+    - cron: '0 0 * * *'  # Runs at midnight every night
+  workflow_dispatch:  # Enables manual triggering of the workflow
+
+jobs:
+  tests:
+    strategy:
+      matrix:
+        python: ["3.10", "3.13"]
+    uses: ./.github/workflows/testing.yml
+    with:
+      python: ${{ matrix.python }}
+      args: -m "smoke or sanity"
+
+  build-and-push-container:
+    needs: [tests]
+    permissions:
+      packages: write
+    uses: ./.github/workflows/build-multiarch-container.yml
+    with:
+      build-type: nightly
+      tag: nightly

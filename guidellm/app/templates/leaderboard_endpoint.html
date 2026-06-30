@@ -1,0 +1,130 @@
+{% extends "base.html" %}
+{% block title %}{{ endpoint_type }} 排行榜{% endblock %}
+{% block content %}
+<!-- 自动刷新：每 15 秒重载一次，benchmark 运行期间自动看到新结果 -->
+<meta http-equiv="refresh" content="15">
+
+<div style="display:flex;align-items:center;gap:16px;margin-bottom:8px">
+  <h1 style="margin:0">{{ endpoint_type }} 排行榜</h1>
+  <span id="countdown" style="font-size:12px;color:#5f6368;background:#f1f3f4;padding:3px 10px;border-radius:10px">
+    15s 后自动刷新
+  </span>
+</div>
+
+<p class="hint">
+  主排名：<b>goodput_output_tokens_per_second</b> — 满足 SLO（TTFT≤2s / TPOT≤0.2s / E2E≤60s / err≤1%）的请求产生的 output tokens 速率。
+  不使用任何自创加权综合分。
+  <a class="btn" href="/api/leaderboard/{{ endpoint_type }}.json">JSON API</a>
+  <a class="btn" href="/api/leaderboard/{{ endpoint_type }}.csv">CSV</a>
+  <span style="float:right;font-size:11px;color:#5f6368">共 {{ rows|length }} 条正式进榜结果</span>
+</p>
+
+<div class="scroll">
+<table id="lb-table">
+<thead><tr>
+  <th>#</th>
+  <th>Model</th>
+  <th>Notes（引擎/硬件/量化/配置）</th>
+  <th style="background:#e8f0fe;color:#1a73e8">Goodput<br>out tok/s ↓</th>
+  <th>Goodput<br>req/s</th>
+  <th>Raw Out<br>tok/s</th>
+  <th>Raw Req/s</th>
+  <th>Raw Total<br>tok/s</th>
+  <th>SLO<br>Pass%</th>
+  <th>P50<br>TTFT(s)</th>
+  <th>P95<br>TTFT(s)</th>
+  <th>P99<br>TTFT(s)</th>
+  <th>P50<br>TPOT(s)</th>
+  <th>P95<br>TPOT(s)</th>
+  <th>P99<br>TPOT(s)</th>
+  <th>P95<br>E2E(s)</th>
+  <th>P99<br>E2E(s)</th>
+  <th>Success%</th>
+  <th>Error%</th>
+  <th>Timeout%</th>
+  <th>报告</th>
+</tr></thead>
+<tbody>
+{% for r in rows %}
+{% set rank = loop.index %}
+<tr class="{% if rank == 1 %}rank1{% elif rank == 2 %}rank2{% elif rank == 3 %}rank3{% endif %}">
+  <td style="font-weight:700;font-size:16px;text-align:center">
+    {% if rank == 1 %}🥇{% elif rank == 2 %}🥈{% elif rank == 3 %}🥉{% else %}{{ rank }}{% endif %}
+  </td>
+  <td><b>{{ r.model_name }}</b></td>
+  <td style="font-size:11px;max-width:260px;white-space:normal;line-height:1.4">{{ r.notes or '—' }}</td>
+  <td style="background:#e8f0fe;font-weight:700;font-size:15px;color:#1a73e8;text-align:right">
+    {{ "%.2f"|format(r.goodput_output_tokens_per_second) }}
+  </td>
+  <td style="text-align:right">{{ "%.3f"|format(r.goodput_requests_per_second) }}</td>
+  <td style="text-align:right">{{ "%.2f"|format(r.raw_output_tokens_per_second) }}</td>
+  <td style="text-align:right">{{ "%.3f"|format(r.raw_request_throughput) }}</td>
+  <td style="text-align:right">{{ "%.2f"|format(r.raw_total_tokens_per_second) }}</td>
+  <td style="text-align:right">
+    {% set pct = (r.slo_pass_rate * 100)|round(1) %}
+    <span style="color:{% if pct >= 99 %}#137333{% elif pct >= 95 %}#e37400{% else %}#b3261e{% endif %}">
+      {{ pct }}%
+    </span>
+  </td>
+  <td style="text-align:right">{{ "%.3f"|format(r.p50_ttft) }}</td>
+  <td style="text-align:right">{{ "%.3f"|format(r.p95_ttft) }}</td>
+  <td style="text-align:right">{{ "%.3f"|format(r.p99_ttft) }}</td>
+  <td style="text-align:right">{{ "%.4f"|format(r.p50_tpot) }}</td>
+  <td style="text-align:right">{{ "%.4f"|format(r.p95_tpot) }}</td>
+  <td style="text-align:right">{{ "%.4f"|format(r.p99_tpot) }}</td>
+  <td style="text-align:right">{{ "%.2f"|format(r.p95_e2e_latency) }}</td>
+  <td style="text-align:right">{{ "%.2f"|format(r.p99_e2e_latency) }}</td>
+  <td style="text-align:right;color:{% if r.success_rate >= 0.99 %}#137333{% else %}#b3261e{% endif %}">
+    {{ "%.1f"|format(r.success_rate * 100) }}%
+  </td>
+  <td style="text-align:right;color:{% if r.error_rate > 0.01 %}#b3261e{% else %}#5f6368{% endif %}">
+    {{ "%.2f"|format(r.error_rate * 100) }}%
+  </td>
+  <td style="text-align:right">{{ "%.2f"|format(r.timeout_rate * 100) }}%</td>
+  <td style="white-space:nowrap">
+    <a class="btn" href="/reports/{{ r.job_id }}.json">JSON</a>
+    <a class="btn" href="/reports/{{ r.job_id }}.html">HTML</a>
+    <a class="btn" href="/reports/{{ r.job_id }}.csv">CSV</a>
+    <a class="btn" href="/jobs/{{ r.job_id }}">详情</a>
+  </td>
+</tr>
+{% else %}
+<tr>
+  <td colspan="21" style="text-align:center;padding:32px;color:#5f6368">
+    暂无正式榜单结果。<br>
+    提交 public_leaderboard 模式任务（dataset=llmperf_550_150 / 150 req / 并发5 / stream=true / err≤1%）后，结果将自动出现在此并每15秒刷新。
+  </td>
+</tr>
+{% endfor %}
+</tbody>
+</table>
+</div>
+
+{% if rows %}
+<div style="margin-top:12px;font-size:12px;color:#5f6368">
+  SLO 阈值：TTFT ≤ 2.0s &nbsp;|&nbsp; TPOT ≤ 0.2s &nbsp;|&nbsp; E2E ≤ 60s &nbsp;|&nbsp; error ≤ 1% &nbsp;|&nbsp;
+  排序：Goodput Out tok/s ↓ → Goodput Req/s ↓ → P95 TTFT ↑ → P95 TPOT ↑ → Error ↑
+</div>
+{% endif %}
+
+<style>
+#lb-table th { font-size: 11px; line-height: 1.3; padding: 5px 7px; }
+#lb-table td { padding: 6px 8px; font-size: 13px; }
+tr.rank1 { background: #fffde7; }
+tr.rank2 { background: #f5f5f5; }
+tr.rank3 { background: #fff8f0; }
+</style>
+
+<script>
+/* 倒计时显示 */
+(function(){
+  var el = document.getElementById('countdown');
+  var t = 15;
+  var iv = setInterval(function(){
+    t--;
+    if(t <= 0){ clearInterval(iv); el.textContent = '刷新中…'; return; }
+    el.textContent = t + 's 后自动刷新';
+  }, 1000);
+})();
+</script>
+{% endblock %}

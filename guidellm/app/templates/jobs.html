@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block title %}任务列表{% endblock %}
+{% block content %}
+<h1>任务列表</h1>
+<div class="scroll">
+<table>
+<thead><tr>
+<th>Job ID</th><th>状态</th><th>Run Status</th><th>Endpoint</th><th>Model</th>
+<th>Base URL</th><th>Mode</th><th>Dataset</th><th>进榜</th><th>创建时间</th><th></th>
+</tr></thead>
+<tbody>
+{% for j in jobs %}
+<tr>
+<td><a href="/jobs/{{ j.id }}">{{ j.id[:8] }}</a></td>
+<td>
+  {% if j.status == 'success' %}<span class="tag ok">success</span>
+  {% elif j.status == 'failed' %}<span class="tag no">failed</span>
+  {% elif j.status == 'running' %}<span class="tag run">running</span>
+  {% else %}<span class="tag grey">{{ j.status }}</span>{% endif %}
+</td>
+<td>{{ j.run_status or '' }}</td>
+<td>{{ j.endpoint_type }}</td>
+<td>{{ j.model_name }}</td>
+<td>{{ j.base_url_masked }}</td>
+<td>{{ j.benchmark_mode }}</td>
+<td>{{ j.dataset_profile }}</td>
+<td>{% if j.leaderboard_eligible %}<span class="tag ok">是</span>{% else %}<span class="tag grey">否</span>{% endif %}</td>
+<td>{{ j.created_at | round(0) if j.created_at else '' }}</td>
+<td><a class="btn" href="/jobs/{{ j.id }}">详情</a></td>
+</tr>
+{% else %}
+<tr><td colspan="11">暂无任务，去 <a href="/submit">提交</a> 一个。</td></tr>
+{% endfor %}
+</tbody>
+</table>
+</div>
+{% endblock %}

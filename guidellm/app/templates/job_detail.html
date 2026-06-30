@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% block title %}任务详情 {{ job.id[:8] }}{% endblock %}
+{% block content %}
+<h1>任务详情 <code>{{ job.id }}</code></h1>
+
+<div class="card">
+<h2>基本信息</h2>
+<table>
+<tr><th>状态</th><td>
+  {% if job.status == 'success' %}<span class="tag ok">success</span>
+  {% elif job.status == 'failed' %}<span class="tag no">failed</span>
+  {% elif job.status == 'running' %}<span class="tag run">running</span>
+  {% else %}<span class="tag grey">{{ job.status }}</span>{% endif %}
+  &nbsp; Run Status: <b>{{ job.run_status or '' }}</b>
+</td></tr>
+<tr><th>Endpoint 类型</th><td>{{ job.endpoint_type }}</td></tr>
+<tr><th>Model</th><td>{{ job.model_name }}</td></tr>
+<tr><th>Base URL (脱敏)</th><td>{{ job.base_url_masked }}</td></tr>
+<tr><th>Benchmark Mode</th><td>{{ job.benchmark_mode }}</td></tr>
+<tr><th>Dataset Profile</th><td>{{ job.dataset_profile }}</td></tr>
+<tr><th>配置</th><td>requests={{ job.total_requests }}, concurrency={{ job.concurrency }},
+  max_output_tokens={{ job.max_output_tokens }}, temperature={{ job.temperature }},
+  top_p={{ job.top_p }}, timeout={{ job.request_timeout }}s, stream={{ job.stream }}</td></tr>
+<tr><th>Notes</th><td>{{ job.notes or '—' }}</td></tr>
+<tr><th>进入正式排行榜</th><td>
+  {% if job.leaderboard_eligible %}<span class="tag ok">是</span>
+  {% else %}<span class="tag no">否</span> — {{ job.ineligible_reason or '—' }}{% endif %}
+</td></tr>
+{% if job.error_message %}<tr><th>错误原因</th><td style="color:#b3261e">{{ job.error_message }}</td></tr>{% endif %}
+</table>
+</div>
+
+{% if result %}
+<div class="card">
+<h2>核心指标</h2>
+<table>
+<tr><th>Goodput Output tok/s（主排名）</th><td><b>{{ result.goodput_output_tokens_per_second }}</b></td></tr>
+<tr><th>Goodput Req/s</th><td>{{ result.goodput_requests_per_second }}</td></tr>
+<tr><th>Raw Output tok/s</th><td>{{ result.raw_output_tokens_per_second }}</td></tr>
+<tr><th>Raw Req/s</th><td>{{ result.raw_request_throughput }}</td></tr>
+<tr><th>Raw Total tok/s</th><td>{{ result.raw_total_tokens_per_second }}</td></tr>
+<tr><th>SLO Pass Rate</th><td>{{ result.slo_pass_rate }}</td></tr>
+<tr><th>TTFT p50/p95/p99 (s)</th><td>{{ result.p50_ttft }} / {{ result.p95_ttft }} / {{ result.p99_ttft }}</td></tr>
+<tr><th>TPOT p50/p95/p99 (s)</th><td>{{ result.p50_tpot }} / {{ result.p95_tpot }} / {{ result.p99_tpot }}</td></tr>
+<tr><th>E2E p50/p95/p99 (s)</th><td>{{ result.p50_e2e_latency }} / {{ result.p95_e2e_latency }} / {{ result.p99_e2e_latency }}</td></tr>
+<tr><th>Success / Error / Timeout Rate</th><td>{{ result.success_rate }} / {{ result.error_rate }} / {{ result.timeout_rate }}</td></tr>
+<tr><th>Stream Supported</th><td>{{ result.stream_supported }}</td></tr>
+<tr><th>Token 统计来源</th><td>prompt={{ result.prompt_tokens_count_source }}, output={{ result.output_tokens_count_source }}</td></tr>
+</table>
+</div>
+{% endif %}
+
+<div class="card">
+<h2>报告与产物</h2>
+<p>
+{% if files['parsed_result.json'] %}<a class="btn" href="/reports/{{ job.id }}.json">JSON</a>{% endif %}
+{% if files['report.html'] %}<a class="btn" href="/reports/{{ job.id }}.html">HTML 报告</a>{% endif %}
+{% if files['result.csv'] %}<a class="btn" href="/reports/{{ job.id }}.csv">CSV</a>{% endif %}
+<a class="btn" href="/api/jobs/{{ job.id }}">API JSON</a>
+</p>
+<p class="hint">输出目录: runs/{{ job.id }}/</p>
+<table>
+{% for name, exists in files.items() %}
+<tr><th>{{ name }}</th><td>{% if exists %}✅ runs/{{ job.id }}/{{ name }}{% else %}—{% endif %}</td></tr>
+{% endfor %}
+</table>
+</div>
+{% endblock %}
