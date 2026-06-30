@@ -1,283 +1,261 @@
-<p align="center">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/vllm-project/guidellm/main/docs/assets/guidellm-logo-light.png">
-    <img alt="GuideLLM Logo" src="https://raw.githubusercontent.com/vllm-project/guidellm/main/docs/assets/guidellm-logo-dark.png" width=55%>
-  </picture>
-</p>
+# LLM 服务 Benchmark 平台（自带端点）
 
-<h3 align="center">
-SLO-aware Benchmarking and Evaluation Platform for Optimizing Real-World LLM Inference
-</h3>
+把已部署的 **OpenAI 兼容推理服务**当作测试对象，自动跑标准 benchmark，输出网页 / JSON / HTML / CSV 四种结果，并维护 Chat / Completions 两个独立排行榜。
 
-[![GitHub Release](https://img.shields.io/github/release/vllm-project/guidellm.svg?label=Version)](https://github.com/vllm-project/guidellm/releases) [![Documentation](https://img.shields.io/badge/Documentation-8A2BE2?logo=read-the-docs&logoColor=%23ffffff&color=%231BC070)](https://github.com/vllm-project/guidellm/tree/main/docs) [![License](https://img.shields.io/github/license/vllm-project/guidellm.svg)](https://github.com/vllm-project/guidellm/blob/main/LICENSE) [![PyPI Release](https://img.shields.io/pypi/v/guidellm.svg?label=PyPI%20Release)](https://pypi.python.org/pypi/guidellm) [![Python Versions](https://img.shields.io/badge/Python-3.10--3.13-orange)](https://pypi.python.org/pypi/guidellm) [![Nightly Build](https://img.shields.io/github/actions/workflow/status/vllm-project/guidellm/nightly.yml?branch=main&label=Nightly%20Build)](https://github.com/vllm-project/guidellm/actions/workflows/nightly.yml)
+> 本平台 **不托管模型、不启动服务、不需要模型权重或路径**。你自己用 vLLM / SGLang / MindIE / TGI / LMDeploy 等启动好 OpenAI 兼容服务，把 `base_url` 或端口交给平台即可。
 
-## Overview
+---
 
-<p>
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/vllm-project/guidellm/main/docs/assets/guidellm-user-flows-dark.png">
-    <img alt="GuideLLM User Flows" src="https://raw.githubusercontent.com/vllm-project/guidellm/main/docs/assets/guidellm-user-flows-light.png">
-  </picture>
-</p>
+## 0. 依赖
 
-**GuideLLM** is a platform for evaluating how language models perform under real workloads and configurations. It simulates end-to-end interactions with OpenAI-compatible and vLLM-native servers, generates workload patterns that reflect production usage, and produces detailed reports that help teams understand system behavior, resource needs, and operational limits. GuideLLM supports real and synthetic datasets, multimodal inputs, and flexible execution profiles, giving engineering and ML teams a consistent framework for assessing model behavior, tuning deployments, and planning capacity as their systems evolve.
+运行在 vLLM 所在的 3.11 环境：`/usr/local/python3.11.14/bin/python3.11`。
 
-### Why GuideLLM?
+- 必需：`fastapi`、`uvicorn`、`jinja2`、`httpx`、`python-multipart`（FastAPI 表单）。
+- benchmark 核心只依赖标准库 + `httpx`，不依赖 guidellm 能否导入。
+- 若缺依赖：
+  ```bash
+  /usr/local/python3.11.14/bin/python3.11 -m pip install fastapi uvicorn jinja2 python-multipart
+  ```
+  （`httpx` 通常已随 guidellm 安装。）
 
-GuideLLM gives teams a clear picture of performance, efficiency, and reliability when deploying LLMs in production-like environments.
+---
 
-- **Captures complete latency and token-level statistics for SLO-driven evaluation**, including full distributions for TTFT, ITL, and end-to-end behavior.
-- **Generates realistic, configurable traffic patterns** across synchronous, concurrent, and rate-based modes, including reproducible sweeps to identify safe operating ranges.
-- **Supports both real and synthetic multimodal datasets**, enabling controlled experiments and production-style evaluations in one framework.
-- **Produces standardized, exportable reports for dashboards, analysis, and regression tracking**, ensuring consistency across teams and workflows.
-- **Delivers high-throughput, extensible benchmarking** with multiprocessing, threading, async execution, and a flexible CLI/API for customization or quickstarts.
-
-### Comparisons
-
-Many tools benchmark endpoints, not models, and miss the details that matter for LLMs. GuideLLM focuses exclusively on LLM-specific workloads, measuring TTFT, ITL, output distributions, and dataset-driven variation. It fits into everyday engineering tasks by using standard Python interfaces and HuggingFace datasets instead of custom formats or research-only pipelines. It is also built for performance, supporting high-rate load generation and accurate scheduling far beyond simple scripts or example benchmarks. The table below highlights how this approach compares to other options.
-
-| Tool                                                                         | CLI | API | High Perf | Full Metrics | Data Modalities                | Data Sources                          | Profiles                                                      | Backends                        | Endpoints                                                                 | Output Types             |
-| ---------------------------------------------------------------------------- | --- | --- | --------- | ------------ | ------------------------------ | ------------------------------------- | ------------------------------------------------------------- | ------------------------------- | ------------------------------------------------------------------------- | ------------------------ |
-| GuideLLM                                                                     | ✅  | ✅  | ✅        | ✅           | Text, Image, Audio, Video      | HuggingFace, Files, Synthetic, Custom | Synchronous, Concurrent, Throughput, Constant, Poisson, Sweep | OpenAI-compatible               | /completions, /chat/completions, /audio/translation, /audio/transcription | console, json, csv, html |
-| [inference-perf](https://github.com/kubernetes-sigs/inference-perf)          | ✅  | ❌  | ✅        | ❌           | Text                           | Synthetic, Specific Datasets          | Concurrent, Constant, Poisson, Sweep                          | OpenAI-compatible               | /completions, /chat/completions                                           | json, png                |
-| [genai-bench](https://github.com/sgl-project/genai-bench)                    | ✅  | ❌  | ❌        | ❌           | Text, Image, Embedding, ReRank | Synthetic, File                       | Concurrent                                                    | OpenAI-compatible, Hosted Cloud | /chat/completions, /embeddings                                            | console, xlsx, png       |
-| [llm-perf](https://github.com/ray-project/llmperf)                           | ❌  | ❌  | ✅        | ❌           | Text                           | Synthetic                             | Concurrent                                                    | OpenAI-compatible, Hosted Cloud | /chat/completions                                                         | json                     |
-| [ollama-benchmark](https://github.com/aidatatools/ollama-benchmark)          | ✅  | ❌  | ❌        | ❌           | Text                           | Synthetic                             | Synchronous                                                   | Ollama                          | /completions                                                              | console, json            |
-| [vllm/benchmarks](https://github.com/vllm-project/vllm/tree/main/benchmarks) | ✅  | ❌  | ❌        | ❌           | Text                           | Synthetic, Specific Datasets          | Synchronous, Throughput, Constant, Sweep                      | OpenAI-compatible, vLLM API     | /completions, /chat/completions                                           | console, png             |
-
-## What's New
-
-This section summarizes the newest capabilities available to users and outlines the current areas of development. It helps readers understand how the platform is evolving and what to expect next.
-
-**Recent Additions**
-
-- New refactored architecture enabling high-rate load generation at scale and a more extensible interface for additional backends, data pipelines, load generation schedules, benchmarking constraints, and output formats.
-- Added multimodal benchmarking support for image, video, and audio workloads across chat completions, transcription, and translation APIs.
-- Broader metrics collection, including richer statistics for visual, audio, and text inputs such as image sizes, audio lengths, video frame counts, and word-level data.
-
-**Active Development**
-
-- Generation of synthetic multimodal datasets for controlled experimentation across images, audio, and video.
-- Extended prefixing options for testing system-prompt and user-prompt variations.
-- Multi-turn conversation capabilities for benchmarking chat agents and dialogue systems.
-- Speculative decoding specific views and outputs.
-
-## Quick Start
-
-The Quick Start shows how to install GuideLLM, launch a server, and run your first benchmark in a few minutes.
-
-### Install GuideLLM
-
-Before installing, ensure you have the following prerequisites:
-
-- OS: Linux or MacOS
-- Python: 3.10 - 3.13
-
-Install the latest GuideLLM release from PyPi using `pip` :
+## 1. 启动 Web 服务
 
 ```bash
-pip install guidellm[recommended]
+cd /home/u_5f35688a99/autotune/guidellm
+/usr/local/python3.11.14/bin/python3.11 -m uvicorn app.main:app --host 0.0.0.0 --port 8088
 ```
 
-Or install from source:
+打开 `http://<本机IP>:8088/submit`。
+
+页面：`/submit` 提交、`/jobs` 列表、`/jobs/{id}` 详情、`/leaderboard` 排行榜首页、
+`/leaderboard/chat_completions`、`/leaderboard/completions`。
+
+---
+
+## 2. 生成 llmperf_550_150 数据集（首次必做）
 
 ```bash
-pip install git+https://github.com/vllm-project/guidellm.git
+/usr/local/python3.11.14/bin/python3.11 benchmark_assets/scripts/build_llmperf_550_150.py
+# 用真实 tokenizer 精确控制 550 tokens：
+TOKENIZER=/path/to/Qwen3-32B-W8A8 /usr/local/python3.11.14/bin/python3.11 \
+  benchmark_assets/scripts/build_llmperf_550_150.py --force
 ```
 
-Or run the latest container from [ghcr.io/vllm-project/guidellm](https://github.com/vllm-project/guidellm/pkgs/container/guidellm):
+生成固定文件 `benchmark_assets/text/llmperf_550_150.jsonl`（150 条，seed=0，确定性复用）。
+
+---
+
+## 3. 网页提交 qwen32b + 910B 的 chat smoke test
+
+1. 确认本地服务在 `http://127.0.0.1:8010/v1`。
+2. 打开 `/submit`，填：
+   - Endpoint 类型：`chat_completions`
+   - model_name：`qwen32b`（或实际 served name）
+   - Base URL：`http://127.0.0.1:8010/v1`，**或**只填端口 `8010`
+   - Benchmark 模式：`smoke`
+3. 提交后自动跳到 `/jobs/{job_id}`，刷新查看状态与指标。
+
+---
+
+## 4. CLI 提交
 
 ```bash
-podman run \
-  --rm -it \
-  -v "./results:/results:rw" \
-  -e GUIDELLM_TARGET=http://localhost:8000 \
-  -e GUIDELLM_PROFILE=sweep \
-  -e GUIDELLM_MAX_SECONDS=30 \
-  -e GUIDELLM_DATA="kind=synthetic_text,prompt_tokens=256,output_tokens=128" \
-  ghcr.io/vllm-project/guidellm:latest
+cd /home/u_5f35688a99/autotune/guidellm
+
+# 只填端口（自动转 http://127.0.0.1:8010/v1），chat smoke
+/usr/local/python3.11.14/bin/python3.11 benchmark_cli.py submit \
+  --endpoint-type chat_completions --port 8010 --model-name qwen32b --mode smoke
+
+# 完整 base_url，正式榜单
+/usr/local/python3.11.14/bin/python3.11 benchmark_cli.py submit \
+  --endpoint-type chat_completions --base-url http://127.0.0.1:8010/v1 \
+  --model-name qwen32b --mode public_leaderboard
+
+# completions
+/usr/local/python3.11.14/bin/python3.11 benchmark_cli.py submit \
+  --endpoint-type completions --port 8010 --model-name qwen32b --mode smoke
+
+# 查询 / 导出 / 排行榜
+/usr/local/python3.11.14/bin/python3.11 benchmark_cli.py status --job-id <job_id>
+/usr/local/python3.11.14/bin/python3.11 benchmark_cli.py export --job-id <job_id> --format json
+/usr/local/python3.11.14/bin/python3.11 benchmark_cli.py leaderboard --endpoint-type chat_completions --format table
 ```
 
-### Launch an Inference Server
+API key（可选，不会被记录）：`--api-key sk-...` 或环境变量 `BENCH_API_KEY`。
 
-Start any OpenAI-compatible endpoint. For vLLM:
+---
 
-```bash
-vllm serve "neuralmagic/Meta-Llama-3.1-8B-Instruct-quantized.w4a16"
+## 5. 数据集方案（profile：`llmperf_550_150`，唯一 profile）
+
+LLMPerf 风格的**固定长度合成 workload**，不是真实语料。设计目标是「只测服务性能、不测模型知识」，
+所以刻意避开 ShareGPT / MMLU / GSM8K / HumanEval —— 用稳定的 prompt 分布消除内容方差，
+让观测差异只反映**服务性能**，可跨引擎 / 硬件 / 量化方案比较。
+
+固定参数（`app/config.py`，单一事实源）：
+
+| 项 | 值 |
+|---|---|
+| 条数 | 150 |
+| input 长度 | ≈ 550 tokens/条 |
+| max_output_tokens | 150 |
+| 随机种子 | seed=0（确定性，重复生成完全一致） |
+
+### 榜单架构（零手动维护）
+
+```
+benchmark_cli.py submit
+    ↓ 写入
+runs/{job_id}/
+    ├── report.json         ← 原始指标
+    ├── report.html         ← 单任务报告
+    └── report.csv
+    ↓ 自动索引
+guidellm/app/
+    ├── db.py              ← SQLite 实时索引（runs/ → leaderboard 表）
+    ├── main.py            ← FastAPI 服务 (端口 8088)
+    └── templates/
+        └── leaderboard_endpoint.html  ← 15秒自动刷新模板
 ```
 
-Verify the server is running at `http://localhost:8000`.
+**关键特性：**
+- **零手动维护** — `submit` 自动写入 → SQLite 自动索引 → Web 自动展示
+- **15秒自动刷新** — `<meta http-equiv="refresh" content="15">` + JS 倒计时
+- **实时可见** — benchmark 跑完后约 15 秒内自动出现在榜单
+- **多格式导出** — `/api/leaderboard/{endpoint_type}.json|.csv` API 端点
 
-### Run Your First Benchmark
+### 5.1 生成机制（`benchmark_assets/scripts/build_llmperf_550_150.py`）
 
-Run a sweep that identifies the maximum performance and maximum rates for the model:
+每条 prompt = 固定主题前缀 + 中性词库随机填充，例如
+`Request 000123 about latency profiling. <随机词...>.`。
+词库 10 个主题循环、`random.Random(0)` 固定，所以 **150 条彼此不同但每次生成完全一致**。
 
-```bash
-guidellm benchmark \
-  --target "http://localhost:8000" \
-  --profile kind=sweep \
-  --max-seconds 30 \
-  --data "kind=synthetic_text,prompt_tokens=256,output_tokens=128"
+长度精度分**两档**，写进每行的 `input_token_control` 字段：
+
+- **`tokenizer`（精确档）**：设了 `TOKENIZER=/path/to/model` 时，用真实 tokenizer 把每条精确
+  控制到 550 tokens（先按 0.8×550 词起步，循环补词到 ≥550，再 `encode()[:550]` 硬截）。
+- **`approximate`（近似档）**：未装 tokenizer 时，按经验「英文 ≈ 0.75 词/token」→ 412 词近似 550 tokens，长度为近似值。
+
+生成一次即固化成 `benchmark_assets/text/llmperf_550_150.jsonl`，之后只加载不重生成
+（`app/benchmark/datasets.py`；缺文件会报错提示先跑 build 脚本）。
+
+> ⚠️ **正式跑分前建议用真实 tokenizer 重建**，否则 input 长度近似、且服务不返回 usage 时 output_tokens
+> 也近似，会让 goodput 绝对值带误差：
+> ```bash
+> TOKENIZER=/home/u_5f35688a99/vllm-ascend/models/Qwen3-32B-W8A8 \
+>   /usr/local/python3.11.14/bin/python3.11 \
+>   benchmark_assets/scripts/build_llmperf_550_150.py --force
+> ```
+
+---
+
+## 6. 负载施加方式（custom HTTP runner，非 guidellm 本体）
+
+主路径是 `app/benchmark/custom_http_runner.py`（仅依赖 httpx），**不是** guidellm 本体。
+原因：本机 guidellm 需 `datasets>=4.1.0`，与 aisbench 的 `datasets<=3.6.0` 冲突，guidellm 可能无法干净导入；
+guidellm runner 仅作可用性探测占位。
+
+负载模型是**固定并发的闭环压测**（非泊松开环到达）：
+
+- `asyncio.Semaphore(concurrency)` 控并发，150 条 prompt 一次性建 task、gather 等全部完成；
+  一个请求结束才放下一个进来。
+- 全程 `stream=True`（SSE），逐分片解析 —— 这是能拿到每请求 TTFT/TPOT 的前提。
+- 三种模式只是并发 / 请求数不同（`MODE_CONFIGS`），共用同一数据集、`temperature=0`、`top_p=1`、`request_timeout=120s`：
+
+| 模式 | total_requests | concurrency | 进正式榜 |
+|---|---|---|---|
+| smoke | 3 | 1 | 否 |
+| **public_leaderboard** | **150** | **5** | **是** |
+| stress | 150 | 10 | 否 |
+
+### 6.1 单请求指标（逐 SSE 帧打点，`_one_request`）
+
+- **TTFT** = 首个非空 delta 到达时间 − 请求开始时间（首帧同时标记 `streamed=true`）。
+- **TPOT（==ITL）** = (end_time − first_token_time) / max(output_tokens−1, 1)，即首 token 之后的平均每 token 间隔。
+- **E2E** = end_time − start_time。
+- **token 统计**：优先用服务返回的 `usage`（completion_tokens / prompt_tokens）；服务不给 usage 时近似（≈4 字符/token 与词数取大）。
+- **成功判定**：HTTP 200 且至少收到一个流式分片 → success；200 但无分片 → 按是否有内容兜底，否则 error；超时单独标 `timeout`。
+
+---
+
+## 7. SLO 与评价体系（`app/benchmark/slo.py` + `metrics.py`）
+
+正式 SLO（固定，**不可被任务覆盖**，单请求级）：
+
+| 项 | 阈值 |
+|---|---|
+| 单请求 TTFT | ≤ 2.0 s |
+| 单请求 TPOT (ITL) | ≤ 0.2 s |
+| 单请求 E2E latency | ≤ 60.0 s |
+| error_rate | ≤ 1% |
+| success_rate | ≥ 99% |
+
+**主排名指标**（不使用任何自创加权综合分）：
+
+```
+goodput_output_tokens_per_second = Σ(SLO 达标请求的 output_tokens) / effective_duration
 ```
 
-You will see progress updates and per-benchmark summaries during the run, as given below:
+- 一个请求计入 goodput 需**同时**满足：success 且 not error 且 not timeout 且 stream_supported 且
+  TTFT≤2s 且 TPOT≤0.2s 且 E2E≤60s（`meets_slo()`）。
+- **effective_duration**（分母）= 末请求 end − 首请求 start 的墙钟时间，**不是**各请求耗时之和。
+- **raw 指标**对照用**全部成功请求**（不卡 SLO），看「不限 SLO 能跑多快」。
+- 分位延迟 p50/p95/p99 的 TTFT/TPOT/E2E 只对成功请求线性插值计算。
 
-<img src= "https://raw.githubusercontent.com/vllm-project/guidellm/main/docs/assets/sample-benchmarks.gif"/>
+排序键（多级）：`goodput_output_tokens_per_second` ↓ → `goodput_requests_per_second` ↓ →
+`p95_ttft` ↑ → `p95_tpot` ↑ → `error_rate` ↑。
 
-### Inspect Outputs
+辅助指标全部展示：raw_output_tokens_per_second、raw_request_throughput、
+raw_total_tokens_per_second、slo_pass_rate、p50/p95/p99 TTFT/TPOT、p95/p99 E2E、
+success/error/timeout rate。
 
-After the benchmark completes, GuideLLM saves all results into the output directory you specified (default: the current directory). You'll see a summary printed in the console along with a set of file locations (`.json,` `.csv`, `.html`) that contain the full results of the run.
+---
 
-The following section, **Output Files and Reports**, explains what each file contains and how to use them for analysis, visualization, or automation.
+## 8. 正式排行榜准入（`app/benchmark/eligibility.py`，强校验、不静默淘汰）
 
-## Output Files and Reports
+只有**全部**满足才进 `/leaderboard`：
 
-After running the Quick Start benchmark, GuideLLM writes several output files to the directory you specified. Each one focuses on a different layer of analysis, ranging from a quick on-screen summary to fully structured data for dashboards and regression pipelines.
+- `benchmark_mode = public_leaderboard`
+- 配置**逐字段等于** `PUBLIC_LEADERBOARD_CONFIG`：`dataset_profile = llmperf_550_150`、`total_requests = 150`、`concurrency = 5`、`max_output_tokens = 150`、`temperature = 0`、`top_p = 1`
+- `stream_supported = true`，endpoint 为 chat_completions 或 completions
+- benchmark 完整结束，`error_rate ≤ 1%`，`success_rate ≥ 99%`，token 统计可用
 
-**Console Output**
+不满足者仍展示在 `/jobs` 与 `/jobs/{id}`，并给出 `ineligible_reason`（逐项列出原因，不静默淘汰）。
+`smoke` / `stress` 默认不进正式榜单。
 
-The console provides a lightweight summary with high-level statistics for each benchmark in the run. It's useful for quick checks to confirm that the server responded correctly, the load sweep completed, and the system behaved as expected. Additionally, the output tables can be copied and pasted into spreadsheet software using `|` as the delimiter. The sections will look similar to the following:
+---
 
-<img alt="Sample GuideLLM benchmark output" src="https://raw.githubusercontent.com/vllm-project/guidellm/main/docs/assets/sample-output.png" />
+## 9. 结果查看
 
-**benchmarks.json**
+每个任务输出在 `runs/<job_id>/`：
+`config.json`、`stdout.log`、`stderr.log`、`raw_result.json`、`parsed_result.json`、
+`per_request_metrics.jsonl`、`result.csv`、`report.html`。
 
-This file is the authoritative record of the entire benchmark session. It includes configuration, metadata, per-benchmark statistics, and sample request entries with individual request timings. Use it for debugging, deeper analysis, or loading into Python with `GenerativeBenchmarksReport`.
+- 网页：`/jobs/{job_id}`
+- JSON：`/reports/{job_id}.json`
+- HTML：`/reports/{job_id}.html`
+- CSV：`/reports/{job_id}.csv`
+- API：`/api/jobs/{job_id}`、`/api/leaderboard/{endpoint_type}.json|csv`
 
-Alternatively, a YAML version of this file can be generated for easier human readability with the same content as `benchmarks.json` using the `--outputs yaml` argument.
+---
 
-**benchmarks.csv**
+## 10. MVP 限制
 
-This file provides a compact tabular view of each benchmark with the fields most commonly used for reporting—throughput, latency percentiles, token counts, and rate information. It opens cleanly in spreadsheets and BI tools and is well-suited for comparisons across runs.
+- 只支持 `/v1/chat/completions` 与 `/v1/completions`；音频接口仅预留结构（见下）。
+- benchmark 主路径是自定义 HTTP runner（因本机 guidellm 的 `datasets>=4.1.0` 与 aisbench 的 `datasets<=3.6.0` 冲突）；guidellm runner 为可用性探测占位。
+- 无 tokenizer 时数据集 token 长度为近似值（`input_token_control=approximate`）。
+- 后台执行用线程；适合单机内网评测，未做多机/鉴权/队列持久化。
+- token 统计优先用服务返回的 `usage`；服务不返回时用近似（约 4 字符/token）。
 
-**benchmarks.html**
+---
 
-The HTML report provides a visual summary of results, including charts of latency distributions, throughput behavior, and generation patterns. It's ideal for quick exploration or sharing with teammates without requiring them to parse JSON.
+## 11. 扩展 audio transcription / translation
 
-## Common Use Cases and Configurations
+预留位已留好，按以下步骤扩展：
 
-GuideLLM supports a wide range of LLM benchmarking workflows. The examples below show how to run typical scenarios and highlight the parameters that matter most. For a complete list of arguments, details, and options, run `guidellm benchmark run --help`
-
-### Load Patterns
-
-Simulating different applications requires different traffic shapes. This example demonstrates rate-based load testing using a constant profile at 10 requests per second, running for 20 seconds with synthetic data of 128 prompt tokens and 256 output tokens.
-
-```bash
-guidellm benchmark \
-  --target http://localhost:8000 \
-  --profile kind=constant \
-  --rate 10 \
-  --max-seconds 20 \
-  --data "kind=synthetic_text,prompt_tokens=128,output_tokens=256"
-```
-
-**Key parameters:**
-
-- `--profile`: Defines the traffic pattern - GuideLLM supports various scheduling profiles including `synchronous` (sequential requests), `concurrent` (parallel users), `throughput` (maximum capacity), `constant` (fixed requests/sec), `poisson` (randomized requests/sec), or `sweep` (automatic rate exploration)
-- `--rate`: The numeric rate value whose meaning depends on profile - for `sweep` it's the number of benchmarks, for `concurrent` it's simultaneous requests, for `constant`/`poisson` it's requests per second
-- `--max-seconds`: Maximum duration in seconds for each benchmark run (can also use `--max-requests` to limit by request count instead)
-
-### Dataset Sources
-
-GuideLLM supports HuggingFace datasets, local files, and synthetic data. This example loads the CNN DailyMail dataset from HuggingFace and maps the article column to prompts while using the summary token count column to determine output lengths.
-
-```bash
-guidellm benchmark run \
-  --target http://localhost:8000 \
-  --data '{"kind": "huggingface", "source": "abisee/cnn_dailymail", "load_kwargs": {"name": "3.0.0"}}' \
-  --data-column-mapper '{"column_mappings": {"text_column": "article"}}'
-```
-
-**Key parameters:**
-
-- `--data`: Data source specification — pass `kind=synthetic_text,prompt_tokens=...,output_tokens=...` for synthetic data, `kind=huggingface,source=DATASET_ID` for HuggingFace datasets (with optional `load_kwargs` for dataset loading args), `kind=json_file,path=...` / `kind=csv_file,path=...` / `kind=text_file,path=...` for local files, or `kind=trace_synthetic,path=...` for trace replay files. Can be specified multiple times for multiple data sources
-- `--data-column-mapper`: JSON object of arguments for dataset creation - commonly used to specify column mappings like `text_column`, `output_tokens_count_column`, or HuggingFace dataset parameters
-- `--data-samples`: Number of samples to use from the dataset - use `-1` (default) for all samples with dynamic generation, or specify a positive integer to limit sample count
-- `--processor`: Tokenizer or processor name used for generating synthetic data - if not provided and required for the dataset, automatically loads from the model; accepts HuggingFace model IDs or local paths
-
-### Request Types and API Targets
-
-You can benchmark chat completions, text completions, or other supported request types. This example configures the benchmark to test the chat completions API using a custom dataset file, with GuideLLM automatically formatting requests to match the chat completions schema.
-
-```bash
-guidellm benchmark \
-  --target http://localhost:8000 \
-  --request-type chat_completions \
-  --data "kind=json_file,path=path/to/data.json"
-```
-
-**Key parameters:**
-
-- `--request-type`: Specifies the API endpoint format - options include `chat_completions` (chat API format), `completions` (text completion format), `audio_transcription` (audio transcription), and `audio_translation` (audio translation)
-
-### Using Scenarios
-
-Built-in scenarios bundle schedules, dataset settings, and request formatting to standardize common testing patterns. This example uses the pre-configured chat scenario which includes appropriate defaults for chat model evaluation, with any additional CLI arguments overriding the scenario's settings.
-
-```bash
-guidellm benchmark --scenario chat --target http://localhost:8000
-```
-
-**Key parameters:**
-
-- `--scenario`: Built-in scenario name or path to a custom scenario configuration file - built-in options include pre-configured testing patterns for common use cases; CLI options passed alongside this will override the scenario's default settings
-
-### Benchmark Controls
-
-Warmup, cooldown, and maximum limits help ensure stable, repeatable measurements. This example runs a concurrent benchmark with 16 parallel requests, using 10% warmup and cooldown periods to exclude initialization and shutdown effects, while limiting the test to stop if more than 5 errors occur.
-
-```bash
-guidellm benchmark \
-  --target http://localhost:8000 \
-  --profile kind=concurrent \
-  --rate 16 \
-  --warmup 0.1 \
-  --cooldown 0.1 \
-  --max-errors 5 \
-  --data "kind=synthetic_text,prompt_tokens=256,output_tokens=128" \
-  --detect-saturation
-```
-
-**Key parameters:**
-
-- `--warmup`: Warmup specification - values between 0 and 1 represent a percentage of total requests/time, values ≥1 represent absolute request or time units
-- `--cooldown`: Cooldown specification - same format as warmup; excludes final portion of benchmark from analysis to avoid shutdown effects
-- `--max-seconds`: Maximum duration in seconds for each benchmark before automatic termination
-- `--max-requests`: Maximum number of requests for each benchmark before automatic termination
-- `--max-errors`: Maximum number of individual errors before stopping the benchmark entirely
-- `--data`: Data to use for benchmarking - synthetic data with 256 input and 128 output tokens
-- `--detect-saturation`: Enable over-saturation detection to automatically stop benchmarks when the model becomes over-saturated (see also `--over-saturation` for more advanced control)
-
-## Development and Contribution
-
-Developers interested in extending GuideLLM can use the project's established development workflow. Local setup, environment activation, and testing instructions are outlined in [DEVELOPING.md](https://github.com/vllm-project/guidellm/blob/main/DEVELOPING.md). This guide explains how to run the benchmark suite, validate changes, and work with the CLI or API during development. Contribution standards are documented in [CONTRIBUTING.md](https://github.com/vllm-project/guidellm/blob/main/CONTRIBUTING.md), including coding conventions, commit structure, and review guidelines. These standards help maintain stability as the platform evolves. The [CODE_OF_CONDUCT.md](https://github.com/vllm-project/guidellm/blob/main/CODE_OF_CONDUCT.md) outlines expectations for respectful and constructive participation across all project spaces. For contributors who want deeper reference material, the documentation covers installation, backends, datasets, metrics, output types, and architecture. Reviewing these topics is useful when adding new backends, request types, or data integrations. Release notes and changelogs are linked from the GitHub Releases page and provide historical context for ongoing work.
-
-## Documentation
-
-The complete documentation provides the details that do not fit in this README. It includes installation steps, backend configuration, dataset handling, metrics definitions, output formats, tutorials, and an architecture overview. These references help you explore the platform more deeply or integrate it into existing workflows.
-
-Notable docs are given below:
-
-- [**Installation Guide**](https://github.com/vllm-project/guidellm/blob/main/docs/getting-started/install.md) - This guide provides step-by-step instructions for installing GuideLLM, including prerequisites and setup tips.
-- [**Backends Guide**](https://github.com/vllm-project/guidellm/blob/main/docs/guides/backends.md) - A comprehensive overview of supported backends and how to set them up for use with GuideLLM.
-- [**Data/Datasets Guide**](https://github.com/vllm-project/guidellm/blob/main/docs/guides/datasets.md) - Information on supported datasets, including how to use them for benchmarking.
-- [**Metrics Guide**](https://github.com/vllm-project/guidellm/blob/main/docs/guides/metrics.md) - Detailed explanations of the metrics used in GuideLLM, including definitions and how to interpret them.
-- [**Outputs Guide**](https://github.com/vllm-project/guidellm/blob/main/docs/guides/outputs.md) - Information on the different output formats supported by GuideLLM and how to use them.
-- [**Architecture Overview**](https://github.com/vllm-project/guidellm/blob/main/docs/guides/architecture.md) - A detailed look at GuideLLM's design, components, and how they interact.
-
-## License
-
-GuideLLM is licensed under the [Apache License 2.0](https://github.com/vllm-project/guidellm/blob/main/LICENSE).
-
-## Cite
-
-If you find GuideLLM helpful in your research or projects, please consider citing it:
-
-```bibtex
-@misc{guidellm2024,
-  title={GuideLLM: Scalable Inference and Optimization for Large Language Models},
-  author={Neural Magic, Inc.},
-  year={2024},
-  howpublished={\url{https://github.com/vllm-project/guidellm}},
-}
-```
+1. `app/config.py`：把 `audio_transcriptions` / `audio_translations` 从 `RESERVED_ENDPOINT_TYPES` 移入 `ENDPOINT_TYPES`。
+2. `app/benchmark/payloads.py`：`endpoint_path()` 增加 `/audio/transcriptions`、`/audio/translations` 分支；新增 multipart 音频请求体构造。
+3. `app/benchmark/custom_http_runner.py`：音频接口多为非流式，新增非流式分支记录 E2E（TTFT/TPOT 可置空）。
+4. `app/benchmark/eligibility.py` + `slo.py`：为音频定义独立 SLO 与 goodput 口径。
+5. 新增 `/leaderboard/audio_transcriptions` 等分榜（与现有两榜并列，互不混合）。
