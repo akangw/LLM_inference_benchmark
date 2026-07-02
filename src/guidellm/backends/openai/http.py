@@ -86,7 +86,6 @@ class OpenAIHTTPBackendArgs(BackendArgs):
     api_key: SecretStr | None = Field(
         default=None,
         description="HTTP Bearer token API key for authentication to server",
-        
     )
     api_routes: dict[str, str] = Field(
         default_factory=dict,
