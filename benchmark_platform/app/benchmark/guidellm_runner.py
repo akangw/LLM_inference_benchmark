@@ -4,6 +4,7 @@
 冲突，可能无法干净导入。因此本 runner 用 guarded import，导入失败时 available()=False，
 runner 分发自动回落到 custom_http_runner。MVP 不强依赖 guidellm 能跑通。
 """
+
 from __future__ import annotations
 
 
@@ -12,6 +13,7 @@ def available() -> tuple[bool, str]:
     try:
         import guidellm  # noqa: F401
         from guidellm.benchmark import benchmark_generative_text  # noqa: F401
+
         return True, getattr(__import__("guidellm"), "__version__", "unknown")
     except Exception as e:  # noqa: BLE001
         return False, f"{type(e).__name__}: {e}"

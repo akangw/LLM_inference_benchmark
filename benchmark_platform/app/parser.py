@@ -3,6 +3,7 @@
 负责：计算 metrics、判定 SLO 闸门与 leaderboard_eligible、确定 run_status。
 只依赖标准库 + 本包内模块。
 """
+
 from __future__ import annotations
 
 from .benchmark.eligibility import evaluate_eligibility
@@ -52,7 +53,9 @@ def build_parsed_result(
         run_status = RunStatus.SLO_PASS
     elif benchmark_mode == "public_leaderboard":
         # 完成但没进榜：区分 SLO 不达标 vs 其他准入不满足
-        run_status = RunStatus.SLO_FAIL if not gate else RunStatus.NOT_LEADERBOARD_ELIGIBLE
+        run_status = (
+            RunStatus.SLO_FAIL if not gate else RunStatus.NOT_LEADERBOARD_ELIGIBLE
+        )
     else:
         run_status = RunStatus.NOT_LEADERBOARD_ELIGIBLE
 
@@ -99,8 +102,12 @@ def to_results_row(parsed: dict, paths: dict) -> dict:
         "raw_total_tokens_per_second": m["raw_total_tokens_per_second"],
         "goodput_requests_per_second": m["goodput_requests_per_second"],
         "goodput_output_tokens_per_second": m["goodput_output_tokens_per_second"],
-        "p50_ttft": m["p50_ttft"], "p95_ttft": m["p95_ttft"], "p99_ttft": m["p99_ttft"],
-        "p50_tpot": m["p50_tpot"], "p95_tpot": m["p95_tpot"], "p99_tpot": m["p99_tpot"],
+        "p50_ttft": m["p50_ttft"],
+        "p95_ttft": m["p95_ttft"],
+        "p99_ttft": m["p99_ttft"],
+        "p50_tpot": m["p50_tpot"],
+        "p95_tpot": m["p95_tpot"],
+        "p99_tpot": m["p99_tpot"],
         "p50_e2e_latency": m["p50_e2e_latency"],
         "p95_e2e_latency": m["p95_e2e_latency"],
         "p99_e2e_latency": m["p99_e2e_latency"],

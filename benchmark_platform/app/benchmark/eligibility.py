@@ -5,6 +5,7 @@ benchmark 完整结束、错误率/成功率达标，才允许进入正式榜单
 任何不满足项都给出明确 ineligible_reason（不静默淘汰）。
 只依赖标准库。
 """
+
 from __future__ import annotations
 
 from ..config import LEADERBOARD_MODE, PUBLIC_LEADERBOARD_CONFIG
@@ -41,7 +42,9 @@ def evaluate_eligibility(
     if concurrency != cfg["concurrency"]:
         reasons.append(f"concurrency={concurrency} 非 {cfg['concurrency']}")
     if max_output_tokens != cfg["max_output_tokens"]:
-        reasons.append(f"max_output_tokens={max_output_tokens} 非 {cfg['max_output_tokens']}")
+        reasons.append(
+            f"max_output_tokens={max_output_tokens} 非 {cfg['max_output_tokens']}"
+        )
     if float(temperature) != float(cfg["temperature"]):
         reasons.append(f"temperature={temperature} 非 {cfg['temperature']}")
     if float(top_p) != float(cfg["top_p"]):

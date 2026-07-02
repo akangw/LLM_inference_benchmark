@@ -12,6 +12,7 @@
   python benchmark_assets/scripts/build_llmperf_550_150.py --force    # 覆盖已存在文件
   TOKENIZER=/path/to/model python ...build_llmperf_550_150.py         # 指定 tokenizer
 """
+
 from __future__ import annotations
 
 import argparse
@@ -26,30 +27,153 @@ TARGET_TOKENS = 550
 MAX_OUTPUT_TOKENS = 150
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-ASSETS = os.path.dirname(HERE)                 # benchmark_assets/
-ROOT = os.path.dirname(ASSETS)                 # guidellm/
+ASSETS = os.path.dirname(HERE)  # benchmark_assets/
+ROOT = os.path.dirname(ASSETS)  # guidellm/
 OUT_DIR = os.path.join(ASSETS, "text")
 OUT_FILE = os.path.join(OUT_DIR, "llmperf_550_150.jsonl")
 
 # 固定英文词库（中性、与模型知识无关，纯长度填充用）
-WORD_BANK = (
-    "the system processes requests across many concurrent streams while the scheduler "
-    "balances throughput and latency under a fixed service level objective the inference "
-    "engine batches tokens and emits them incrementally so that downstream consumers can "
-    "measure time to first token and inter token latency for every individual request the "
-    "benchmark harness records start time first token time and end time then derives end to "
-    "end latency from these observations the workload is synthetic and fixed length to keep "
-    "comparisons fair across different engines hardware platforms and quantization schemes a "
-    "stable prompt distribution removes data variance so that observed differences reflect "
-    "serving performance rather than prompt content the platform never evaluates model "
-    "knowledge it only measures how fast a deployed endpoint can serve a known load profile"
-).split()
+WORD_BANK = [
+    "the",
+    "system",
+    "processes",
+    "requests",
+    "across",
+    "many",
+    "concurrent",
+    "streams",
+    "while",
+    "the",
+    "scheduler",
+    "balances",
+    "throughput",
+    "and",
+    "latency",
+    "under",
+    "a",
+    "fixed",
+    "service",
+    "level",
+    "objective",
+    "the",
+    "inference",
+    "engine",
+    "batches",
+    "tokens",
+    "and",
+    "emits",
+    "them",
+    "incrementally",
+    "so",
+    "that",
+    "downstream",
+    "consumers",
+    "can",
+    "measure",
+    "time",
+    "to",
+    "first",
+    "token",
+    "and",
+    "inter",
+    "token",
+    "latency",
+    "for",
+    "every",
+    "individual",
+    "request",
+    "the",
+    "benchmark",
+    "harness",
+    "records",
+    "start",
+    "time",
+    "first",
+    "token",
+    "time",
+    "and",
+    "end",
+    "time",
+    "then",
+    "derives",
+    "end",
+    "to",
+    "end",
+    "latency",
+    "from",
+    "these",
+    "observations",
+    "the",
+    "workload",
+    "is",
+    "synthetic",
+    "and",
+    "fixed",
+    "length",
+    "to",
+    "keep",
+    "comparisons",
+    "fair",
+    "across",
+    "different",
+    "engines",
+    "hardware",
+    "platforms",
+    "and",
+    "quantization",
+    "schemes",
+    "a",
+    "stable",
+    "prompt",
+    "distribution",
+    "removes",
+    "data",
+    "variance",
+    "so",
+    "that",
+    "observed",
+    "differences",
+    "reflect",
+    "serving",
+    "performance",
+    "rather",
+    "than",
+    "prompt",
+    "content",
+    "the",
+    "platform",
+    "never",
+    "evaluates",
+    "model",
+    "knowledge",
+    "it",
+    "only",
+    "measures",
+    "how",
+    "fast",
+    "a",
+    "deployed",
+    "endpoint",
+    "can",
+    "serve",
+    "a",
+    "known",
+    "load",
+    "profile",
+]
 
 # 固定主题前缀，让 150 条彼此不同但完全确定
 TOPICS = [
-    "throughput analysis", "latency profiling", "concurrency scaling", "token streaming",
-    "scheduler behavior", "memory utilization", "queue dynamics", "batch formation",
-    "tail latency", "service objectives",
+    "throughput analysis",
+    "latency profiling",
+    "concurrency scaling",
+    "token streaming",
+    "scheduler behavior",
+    "memory utilization",
+    "queue dynamics",
+    "batch formation",
+    "tail latency",
+    "service objectives",
 ]
 
 
@@ -59,6 +183,7 @@ def try_load_tokenizer():
         return None, "approximate"
     try:
         from transformers import AutoTokenizer  # type: ignore
+
         tok = AutoTokenizer.from_pretrained(path, trust_remote_code=True)
         return tok, "tokenizer"
     except Exception as e:  # noqa: BLE001
@@ -80,7 +205,9 @@ def build_with_tokenizer(tok, rng: random.Random, idx: int) -> str:
         n = len(tok.encode(text))
         if n >= TARGET_TOKENS:
             break
-        text += " " + " ".join(rng.choice(WORD_BANK) for _ in range(max(1, (TARGET_TOKENS - n))))
+        text += " " + " ".join(
+            rng.choice(WORD_BANK) for _ in range(max(1, (TARGET_TOKENS - n)))
+        )
     # 截断到恰好 TARGET_TOKENS
     ids = tok.encode(text)[:TARGET_TOKENS]
     return tok.decode(ids)
@@ -99,7 +226,9 @@ def main() -> int:
 
     os.makedirs(OUT_DIR, exist_ok=True)
     if os.path.exists(OUT_FILE) and not args.force:
-        print(f"[build] 已存在 {OUT_FILE}（{_count_lines(OUT_FILE)} 行）。--force 可覆盖。")
+        print(
+            f"[build] 已存在 {OUT_FILE}（{_count_lines(OUT_FILE)} 行）。--force 可覆盖。"
+        )
         return 0
 
     tok, control = try_load_tokenizer()
@@ -111,12 +240,14 @@ def main() -> int:
             prompt = build_with_tokenizer(tok, rng, i)
         else:
             prompt = build_approximate(rng, i)
-        rows.append({
-            "id": f"llmperf_{i:06d}",
-            "prompt": prompt,
-            "max_tokens": MAX_OUTPUT_TOKENS,
-            "input_token_control": control,
-        })
+        rows.append(
+            {
+                "id": f"llmperf_{i:06d}",
+                "prompt": prompt,
+                "max_tokens": MAX_OUTPUT_TOKENS,
+                "input_token_control": control,
+            }
+        )
 
     with open(OUT_FILE, "w", encoding="utf-8") as f:
         for r in rows:
@@ -124,14 +255,18 @@ def main() -> int:
 
     approx_tokens = sum(len(r["prompt"].split()) for r in rows) / len(rows)
     print(f"[build] 写入 {OUT_FILE}")
-    print(f"[build] {N} 条 prompt，control={control}，平均词数≈{approx_tokens:.0f}，seed={SEED}")
+    print(
+        f"[build] {N} 条 prompt，control={control}，平均词数≈{approx_tokens:.0f}，seed={SEED}"
+    )
     if control == "approximate":
-        print("[build] 注意：无 tokenizer，input_token_control=approximate（按词数近似 550 tokens）")
+        print(
+            "[build] 注意：无 tokenizer，input_token_control=approximate（按词数近似 550 tokens）"
+        )
     return 0
 
 
 def _count_lines(path: str) -> int:
-    with open(path, "r", encoding="utf-8") as f:
+    with open(path, encoding="utf-8") as f:
         return sum(1 for _ in f)
 
 

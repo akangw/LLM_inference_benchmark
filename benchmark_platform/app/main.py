@@ -3,6 +3,7 @@
 启动：
   /usr/local/python3.11.14/bin/python3.11 -m uvicorn app.main:app --host 0.0.0.0 --port 8088
 """
+
 from __future__ import annotations
 
 import os
@@ -84,9 +85,16 @@ def job_detail(request: Request, job_id: str):
     result = db.get_result_for_job(job_id)
     run_dir = os.path.join(RUNS_DIR, job_id)
     files = {}
-    for name in ("config.json", "stdout.log", "stderr.log", "raw_result.json",
-                 "parsed_result.json", "per_request_metrics.jsonl",
-                 "result.csv", "report.html"):
+    for name in (
+        "config.json",
+        "stdout.log",
+        "stderr.log",
+        "raw_result.json",
+        "parsed_result.json",
+        "per_request_metrics.jsonl",
+        "result.csv",
+        "report.html",
+    ):
         p = os.path.join(run_dir, name)
         files[name] = os.path.exists(p)
     return templates.TemplateResponse(
@@ -116,14 +124,16 @@ def _read_run_file(job_id: str, filename: str) -> str:
     path = os.path.join(RUNS_DIR, job_id, filename)
     if not os.path.exists(path):
         raise HTTPException(status_code=404, detail=f"{filename} 不存在")
-    with open(path, "r", encoding="utf-8") as f:
+    with open(path, encoding="utf-8") as f:
         return f.read()
 
 
 @app.get("/reports/{job_id}.json")
 def report_json(job_id: str):
-    return Response(content=_read_run_file(job_id, "parsed_result.json"),
-                    media_type="application/json")
+    return Response(
+        content=_read_run_file(job_id, "parsed_result.json"),
+        media_type="application/json",
+    )
 
 
 @app.get("/reports/{job_id}.html", response_class=HTMLResponse)
@@ -161,7 +171,9 @@ def api_leaderboard_csv(endpoint_type: str):
     if endpoint_type not in ENDPOINT_TYPES:
         raise HTTPException(status_code=404, detail="未知 endpoint_type")
     rows = db.leaderboard_rows(endpoint_type, eligible_only=True)
-    return PlainTextResponse(reports.leaderboard_csv_string(rows), media_type="text/csv")
+    return PlainTextResponse(
+        reports.leaderboard_csv_string(rows), media_type="text/csv"
+    )
 
 
 @app.get("/healthz")

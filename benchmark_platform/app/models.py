@@ -1,4 +1,5 @@
 """数据模型与状态枚举。仅标准库。"""
+
 from __future__ import annotations
 
 import uuid

@@ -1,4 +1,5 @@
 """提交与执行 job 的共享服务层。被 Web 与 CLI 复用，避免逻辑漂移。"""
+
 from __future__ import annotations
 
 import threading
@@ -26,9 +27,13 @@ def build_job(
 ) -> dict:
     """校验入参并构造 jobs 行（不入库）。"""
     if endpoint_type not in ENDPOINT_TYPES:
-        raise SubmitError(f"endpoint_type 必须是 {ENDPOINT_TYPES}，收到 {endpoint_type}")
+        raise SubmitError(
+            f"endpoint_type 必须是 {ENDPOINT_TYPES}，收到 {endpoint_type}"
+        )
     if benchmark_mode not in BENCHMARK_MODES:
-        raise SubmitError(f"benchmark_mode 必须是 {BENCHMARK_MODES}，收到 {benchmark_mode}")
+        raise SubmitError(
+            f"benchmark_mode 必须是 {BENCHMARK_MODES}，收到 {benchmark_mode}"
+        )
     if not model_name or not model_name.strip():
         raise SubmitError("model_name 不能为空")
 
@@ -72,7 +77,9 @@ def build_job(
     return job
 
 
-def submit_job(*, api_key: str | None = None, background: bool = True, **kwargs) -> dict:
+def submit_job(
+    *, api_key: str | None = None, background: bool = True, **kwargs
+) -> dict:
     """构造 + 入库 + （可选）后台执行。返回 job dict。
 
     同一 base_url + endpoint_type 同时只允许一个 running/queued job。

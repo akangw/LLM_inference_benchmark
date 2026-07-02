@@ -2,6 +2,7 @@
 
 只依赖标准库。预留音频接口扩展位（不实现）。
 """
+
 from __future__ import annotations
 
 
@@ -70,7 +71,11 @@ def build_payload(
     stream: bool,
 ) -> dict:
     if endpoint_type == "chat_completions":
-        return build_chat_payload(model_name, prompt, max_tokens, temperature, top_p, stream)
+        return build_chat_payload(
+            model_name, prompt, max_tokens, temperature, top_p, stream
+        )
     if endpoint_type == "completions":
-        return build_completions_payload(model_name, prompt, max_tokens, temperature, top_p, stream)
+        return build_completions_payload(
+            model_name, prompt, max_tokens, temperature, top_p, stream
+        )
     raise ValueError(f"MVP 不支持的 endpoint_type: {endpoint_type}")

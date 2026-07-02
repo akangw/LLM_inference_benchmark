@@ -2,6 +2,7 @@
 
 只依赖标准库。被 Web、CLI、runner 共享。
 """
+
 from __future__ import annotations
 
 import re

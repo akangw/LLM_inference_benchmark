@@ -2,6 +2,7 @@
 
 只依赖标准库，方便被 CLI / Web / runner 共享导入而不引入重依赖。
 """
+
 from __future__ import annotations
 
 import os

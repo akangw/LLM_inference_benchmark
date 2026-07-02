@@ -3,9 +3,9 @@
 设计：单文件 SQLite，WAL 模式，线程安全连接（check_same_thread=False + 每次操作短连接）。
 api_key 绝不入库、绝不入日志。
 """
+
 from __future__ import annotations
 
-import json
 import sqlite3
 import threading
 import time
@@ -101,12 +101,30 @@ def init_db() -> None:
 
 def insert_job(job: dict) -> None:
     cols = [
-        "id", "endpoint_type", "model_name", "base_url", "base_url_masked",
-        "status", "benchmark_mode", "dataset_profile", "total_requests",
-        "concurrency", "max_output_tokens", "temperature", "top_p", "stream",
-        "request_timeout", "created_at", "started_at", "finished_at",
-        "error_message", "run_dir", "leaderboard_eligible", "ineligible_reason",
-        "notes", "run_status",
+        "id",
+        "endpoint_type",
+        "model_name",
+        "base_url",
+        "base_url_masked",
+        "status",
+        "benchmark_mode",
+        "dataset_profile",
+        "total_requests",
+        "concurrency",
+        "max_output_tokens",
+        "temperature",
+        "top_p",
+        "stream",
+        "request_timeout",
+        "created_at",
+        "started_at",
+        "finished_at",
+        "error_message",
+        "run_dir",
+        "leaderboard_eligible",
+        "ineligible_reason",
+        "notes",
+        "run_status",
     ]
     placeholders = ",".join("?" for _ in cols)
     vals = [job.get(c) for c in cols]

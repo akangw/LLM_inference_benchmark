@@ -3,28 +3,30 @@
 只依赖标准库。一个请求是否计入 goodput、是否满足 SLO，全部在此判定，
 确保 metrics / runner / report 用同一套规则。
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass
 
 # ───────── 正式 SLO（固定，不可被任务覆盖）─────────
-SLO_TTFT = 2.0      # 秒，Time To First Token
-SLO_TPOT = 0.2      # 秒，Time Per Output Token (== ITL)
-SLO_E2E = 60.0      # 秒，End-to-End latency（工程保护阈值）
-MAX_ERROR_RATE = 0.01     # 1%
-MIN_SUCCESS_RATE = 0.99   # 99%
+SLO_TTFT = 2.0  # 秒，Time To First Token
+SLO_TPOT = 0.2  # 秒，Time Per Output Token (== ITL)
+SLO_E2E = 60.0  # 秒，End-to-End latency（工程保护阈值）
+MAX_ERROR_RATE = 0.01  # 1%
+MIN_SUCCESS_RATE = 0.99  # 99%
 
 
 @dataclass
 class RequestRecord:
     """单请求观测值。runner 产出，metrics / slo 消费。"""
+
     request_id: str
     start_time: float = 0.0
     first_token_time: float | None = None
     end_time: float | None = None
-    ttft: float | None = None          # 秒
-    tpot: float | None = None          # 秒/token
-    e2e_latency: float | None = None   # 秒
+    ttft: float | None = None  # 秒
+    tpot: float | None = None  # 秒/token
+    e2e_latency: float | None = None  # 秒
     prompt_tokens: int = 0
     output_tokens: int = 0
     success: bool = False
@@ -62,11 +64,7 @@ def meets_slo(rec: RequestRecord, stream_supported: bool) -> bool:
         return False
     if rec.ttft is None or rec.tpot is None or rec.e2e_latency is None:
         return False
-    return (
-        rec.ttft <= SLO_TTFT
-        and rec.tpot <= SLO_TPOT
-        and rec.e2e_latency <= SLO_E2E
-    )
+    return rec.ttft <= SLO_TTFT and rec.tpot <= SLO_TPOT and rec.e2e_latency <= SLO_E2E
 
 
 def slo_summary() -> dict:

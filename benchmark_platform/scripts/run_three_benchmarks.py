@@ -15,12 +15,12 @@
 
 注意：PIECEWISE + seqs >= 64 在本硬件必崩（NPU stream 耗尽）→ B/C 强制 seqs=32。
 """
+
 from __future__ import annotations
 
 import json
 import os
 import subprocess
-import sys
 import time
 from os.path import abspath, dirname
 
@@ -38,8 +38,8 @@ SCENARIOS = [
         "tag": "A_piecewise_conservative",
         "label": "场景 A · PIECEWISE 保守基准（seqs=16，无优化）",
         "notes": "engine: vLLM 0.14.1; hardware: 4×910B3; quant: W8A8; "
-                 "graph: PIECEWISE; max-num-seqs: 16(保守); "
-                 "max-num-batched-tokens: 8192; gpu-mem-util: 0.90; no Ascend opts",
+        "graph: PIECEWISE; max-num-seqs: 16(保守); "
+        "max-num-batched-tokens: 8192; gpu-mem-util: 0.90; no Ascend opts",
         "params": {
             "cli": {
                 "tensor-parallel-size": 4,
@@ -77,15 +77,15 @@ SCENARIOS = [
         "tag": "B_piecewise_base_opt",
         "label": "场景 B · PIECEWISE 图编译 + 权重预取",
         "notes": "engine: vLLM 0.14.1; hardware: 4×910B3; quant: W8A8; "
-                 "graph: PIECEWISE; max-num-seqs: 32(上限); "
-                 "weight_prefetch+FlashComm1; gpu-mem-util: 0.94",
+        "graph: PIECEWISE; max-num-seqs: 32(上限); "
+        "weight_prefetch+FlashComm1; gpu-mem-util: 0.94",
         "params": {
             "cli": {
                 "tensor-parallel-size": 4,
                 "quantization": "ascend",
                 "distributed-executor-backend": "mp",
                 "block-size": 128,
-                "max-num-seqs": 32,        # PIECEWISE 硬上限：>=64 必崩
+                "max-num-seqs": 32,  # PIECEWISE 硬上限：>=64 必崩
                 "max-num-batched-tokens": 16384,
                 "max-model-len": 8192,
                 "gpu-memory-utilization": 0.94,
@@ -116,15 +116,15 @@ SCENARIOS = [
         "tag": "C_piecewise_full_opt",
         "label": "场景 C · PIECEWISE 全量优化",
         "notes": "engine: vLLM 0.14.1; hardware: 4×910B3; quant: W8A8; "
-                 "graph: PIECEWISE; max-num-seqs: 32(上限); "
-                 "fuse_allreduce+QK融合+MLP预取+cpu绑核; batched-tokens: 24576; gpu-mem-util: 0.94",
+        "graph: PIECEWISE; max-num-seqs: 32(上限); "
+        "fuse_allreduce+QK融合+MLP预取+cpu绑核; batched-tokens: 24576; gpu-mem-util: 0.94",
         "params": {
             "cli": {
                 "tensor-parallel-size": 4,
                 "quantization": "ascend",
                 "distributed-executor-backend": "mp",
                 "block-size": 128,
-                "max-num-seqs": 32,        # PIECEWISE 硬上限
+                "max-num-seqs": 32,  # PIECEWISE 硬上限
                 "max-num-batched-tokens": 24576,
                 "max-model-len": 8192,
                 "gpu-memory-utilization": 0.94,
@@ -173,7 +173,9 @@ def log(msg: str) -> None:
 
 def wait_port(port: int, timeout: int = 600) -> bool:
     """等待端口就绪（由 start_service.sh 负责，这里只是轮询保险）。"""
-    import socket, time
+    import socket
+    import time
+
     deadline = time.monotonic() + timeout
     while time.monotonic() < deadline:
         try:
@@ -188,12 +190,12 @@ def main() -> int:
     results: list[dict] = []
 
     for sc in SCENARIOS:
-        tag   = sc["tag"]
+        tag = sc["tag"]
         label = sc["label"]
         notes = sc["notes"]
-        log(f"{'='*60}")
+        log(f"{'=' * 60}")
         log(f"开始 {label}")
-        log(f"{'='*60}")
+        log(f"{'=' * 60}")
 
         # ── 1. 写 chosen_params.json ──
         run_dir = f"/tmp/bench_{tag}"
@@ -206,36 +208,56 @@ def main() -> int:
 
         # ── 2. 启动 vLLM 服务 ──
         log("启动 vLLM…")
-        rc, out = run(["bash", f"{AUTOTUNE}/scripts/start_service.sh", run_dir],
-                      cwd=AUTOTUNE, timeout=700)
-        print(out[-3000:])   # 只打末尾，避免太长
+        rc, out = run(
+            ["bash", f"{AUTOTUNE}/scripts/start_service.sh", run_dir],
+            cwd=AUTOTUNE,
+            timeout=700,
+        )
+        print(out[-3000:])  # 只打末尾，避免太长
         if rc != 0:
             log(f"[ERROR] 场景 {tag} 服务启动失败 (rc={rc})，跳过 benchmark。")
-            results.append({"tag": tag, "service_rc": rc, "bench_rc": None, "job_id": None})
+            results.append(
+                {"tag": tag, "service_rc": rc, "bench_rc": None, "job_id": None}
+            )
             # 尝试清理
-            run(["bash", f"{AUTOTUNE}/scripts/stop_service.sh", "120"], cwd=AUTOTUNE, timeout=200)
+            run(
+                ["bash", f"{AUTOTUNE}/scripts/stop_service.sh", "120"],
+                cwd=AUTOTUNE,
+                timeout=200,
+            )
             continue
 
         log("vLLM 就绪 ✓  开始 benchmark (public_leaderboard, 150 req / 并发5)…")
 
         # ── 3. 跑正式榜单 benchmark ──
         bench_cmd = [
-            PY, CLI, "submit",
-            "--endpoint-type", "chat_completions",
-            "--port",          "8010",
-            "--model-name",    "qwen3-32b-w8a8",
-            "--mode",          "public_leaderboard",
-            "--notes",         notes,
+            PY,
+            CLI,
+            "submit",
+            "--endpoint-type",
+            "chat_completions",
+            "--port",
+            "8010",
+            "--model-name",
+            "qwen3-32b-w8a8",
+            "--mode",
+            "public_leaderboard",
+            "--notes",
+            notes,
         ]
         rc_b, out_b = run(bench_cmd, cwd=PLATFORM, timeout=900)
         # 去掉 torch_npu 告警
-        clean = "\n".join(l for l in out_b.splitlines()
-                          if "Warning" not in l and "warnings.warn" not in l)
+        clean = "\n".join(
+            l
+            for l in out_b.splitlines()
+            if "Warning" not in l and "warnings.warn" not in l
+        )
         print(clean)
 
         job_id = None
         try:
             import re
+
             m = re.search(r'"job_id":\s*"([a-f0-9]+)"', clean)
             if m:
                 job_id = m.group(1)
@@ -243,20 +265,34 @@ def main() -> int:
             pass
 
         log(f"benchmark 结束: rc={rc_b}  job_id={job_id}")
-        results.append({"tag": tag, "service_rc": 0, "bench_rc": rc_b, "job_id": job_id})
+        results.append(
+            {"tag": tag, "service_rc": 0, "bench_rc": rc_b, "job_id": job_id}
+        )
 
         # ── 4. 停服务、释放 HBM ──
         log("停止 vLLM，等待 HBM 释放…")
-        run(["bash", f"{AUTOTUNE}/scripts/stop_service.sh", "180"], cwd=AUTOTUNE, timeout=240)
+        run(
+            ["bash", f"{AUTOTUNE}/scripts/stop_service.sh", "180"],
+            cwd=AUTOTUNE,
+            timeout=240,
+        )
         log("HBM 释放完毕，准备下一个场景。")
         time.sleep(5)
 
     # ── 汇总 ──
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
     print("三场景汇总")
-    print("="*60)
+    print("=" * 60)
     for r in results:
-        status = "✅ 成功" if r["bench_rc"] == 0 else ("⚠️ bench_rc={}".format(r["bench_rc"]) if r["bench_rc"] is not None else "❌ 服务启动失败")
+        status = (
+            "✅ 成功"
+            if r["bench_rc"] == 0
+            else (
+                "⚠️ bench_rc={}".format(r["bench_rc"])
+                if r["bench_rc"] is not None
+                else "❌ 服务启动失败"
+            )
+        )
         print(f"  {r['tag']:<35} {status}  job_id={r['job_id']}")
 
     print("\n查看榜单:")

@@ -1,4 +1,5 @@
 """runner 抽象基类。所有 runner 统一返回 BenchmarkResult。"""
+
 from __future__ import annotations
 
 from ..config import mode_config

@@ -4,6 +4,7 @@
 同时保留全部原始指标（raw throughput / 各分位延迟 / 成功率等）。
 只依赖标准库。
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -33,17 +34,18 @@ def _percentile(values: list[float], pct: float) -> float:
 @dataclass
 class BenchmarkResult:
     """所有 runner 的统一返回。runner -> parser/metrics -> reports/db。"""
+
     records: list[RequestRecord] = field(default_factory=list)
     # 有效运行时间（秒）：第一条请求开始到最后一条请求结束的墙钟时间
     effective_duration: float = 0.0
     stream_supported: bool = False
     usage_available: bool = False
-    prompt_tokens_count_source: str = "unknown"   # usage / approximate / tokenizer
+    prompt_tokens_count_source: str = "unknown"  # usage / approximate / tokenizer
     output_tokens_count_source: str = "unknown"
     runner_name: str = "custom_http"
     notes: str | None = None
 
-    def to_metrics(self) -> "Metrics":
+    def to_metrics(self) -> Metrics:
         return compute_metrics(self)
 
 
@@ -80,7 +82,9 @@ class Metrics:
 
     def to_dict(self) -> dict:
         return {
-            "goodput_output_tokens_per_second": round(self.goodput_output_tokens_per_second, 4),
+            "goodput_output_tokens_per_second": round(
+                self.goodput_output_tokens_per_second, 4
+            ),
             "goodput_requests_per_second": round(self.goodput_requests_per_second, 4),
             "raw_output_tokens_per_second": round(self.raw_output_tokens_per_second, 4),
             "raw_request_throughput": round(self.raw_request_throughput, 4),

@@ -2,6 +2,7 @@
 
 CSV summary 列严格按 spec 顺序。HTML 报告自包含（无外链），含全部分区。
 """
+
 from __future__ import annotations
 
 import csv
@@ -14,16 +15,32 @@ from .benchmark.slo import slo_summary
 
 # CSV summary 表头（spec 固定顺序）
 CSV_COLUMNS = [
-    "job_id", "endpoint_type", "model_name", "benchmark_mode", "dataset_profile",
-    "total_requests", "concurrency",
-    "goodput_output_tokens_per_second", "goodput_requests_per_second",
-    "raw_output_tokens_per_second", "raw_request_throughput", "raw_total_tokens_per_second",
+    "job_id",
+    "endpoint_type",
+    "model_name",
+    "benchmark_mode",
+    "dataset_profile",
+    "total_requests",
+    "concurrency",
+    "goodput_output_tokens_per_second",
+    "goodput_requests_per_second",
+    "raw_output_tokens_per_second",
+    "raw_request_throughput",
+    "raw_total_tokens_per_second",
     "slo_pass_rate",
-    "p50_ttft", "p95_ttft", "p99_ttft",
-    "p50_tpot", "p95_tpot", "p99_tpot",
-    "p95_e2e_latency", "p99_e2e_latency",
-    "success_rate", "error_rate", "timeout_rate",
-    "leaderboard_eligible", "ineligible_reason",
+    "p50_ttft",
+    "p95_ttft",
+    "p99_ttft",
+    "p50_tpot",
+    "p95_tpot",
+    "p99_tpot",
+    "p95_e2e_latency",
+    "p99_e2e_latency",
+    "success_rate",
+    "error_rate",
+    "timeout_rate",
+    "leaderboard_eligible",
+    "ineligible_reason",
 ]
 
 
@@ -57,9 +74,14 @@ def write_csv(run_dir: str, parsed: dict) -> str:
         "raw_request_throughput": m["raw_request_throughput"],
         "raw_total_tokens_per_second": m["raw_total_tokens_per_second"],
         "slo_pass_rate": m["slo_pass_rate"],
-        "p50_ttft": m["p50_ttft"], "p95_ttft": m["p95_ttft"], "p99_ttft": m["p99_ttft"],
-        "p50_tpot": m["p50_tpot"], "p95_tpot": m["p95_tpot"], "p99_tpot": m["p99_tpot"],
-        "p95_e2e_latency": m["p95_e2e_latency"], "p99_e2e_latency": m["p99_e2e_latency"],
+        "p50_ttft": m["p50_ttft"],
+        "p95_ttft": m["p95_ttft"],
+        "p99_ttft": m["p99_ttft"],
+        "p50_tpot": m["p50_tpot"],
+        "p95_tpot": m["p95_tpot"],
+        "p99_tpot": m["p99_tpot"],
+        "p95_e2e_latency": m["p95_e2e_latency"],
+        "p99_e2e_latency": m["p99_e2e_latency"],
         "success_rate": m["success_rate"],
         "error_rate": m["error_rate"],
         "timeout_rate": m["timeout_rate"],
@@ -104,7 +126,9 @@ def leaderboard_csv_string(rows: list[dict]) -> str:
 
 
 def _row(label: str, value) -> str:
-    return f'<tr><th>{html.escape(str(label))}</th><td>{html.escape(str(value))}</td></tr>'
+    return (
+        f"<tr><th>{html.escape(str(label))}</th><td>{html.escape(str(value))}</td></tr>"
+    )
 
 
 def render_report_html(parsed: dict, job: dict, run_dir: str) -> str:
@@ -116,7 +140,7 @@ def render_report_html(parsed: dict, job: dict, run_dir: str) -> str:
     badge_text = "进入正式排行榜" if eligible else "不进入正式排行榜"
 
     def sec(title, rows_html):
-        return f'<section><h2>{html.escape(title)}</h2><table>{rows_html}</table></section>'
+        return f"<section><h2>{html.escape(title)}</h2><table>{rows_html}</table></section>"
 
     job_summary = (
         _row("Job ID", parsed["job_id"])
@@ -149,9 +173,14 @@ def render_report_html(parsed: dict, job: dict, run_dir: str) -> str:
         + _row("Raw Total tok/s", m["raw_total_tokens_per_second"])
     )
     latency = (
-        _row("P50 TTFT (s)", m["p50_ttft"]) + _row("P95 TTFT (s)", m["p95_ttft"]) + _row("P99 TTFT (s)", m["p99_ttft"])
-        + _row("P50 TPOT (s)", m["p50_tpot"]) + _row("P95 TPOT (s)", m["p95_tpot"]) + _row("P99 TPOT (s)", m["p99_tpot"])
-        + _row("P95 E2E (s)", m["p95_e2e_latency"]) + _row("P99 E2E (s)", m["p99_e2e_latency"])
+        _row("P50 TTFT (s)", m["p50_ttft"])
+        + _row("P95 TTFT (s)", m["p95_ttft"])
+        + _row("P99 TTFT (s)", m["p99_ttft"])
+        + _row("P50 TPOT (s)", m["p50_tpot"])
+        + _row("P95 TPOT (s)", m["p95_tpot"])
+        + _row("P99 TPOT (s)", m["p99_tpot"])
+        + _row("P95 E2E (s)", m["p95_e2e_latency"])
+        + _row("P99 E2E (s)", m["p99_e2e_latency"])
     )
     reliability = (
         _row("Success Rate", m["success_rate"])
@@ -159,21 +188,20 @@ def render_report_html(parsed: dict, job: dict, run_dir: str) -> str:
         + _row("Timeout Rate", m["timeout_rate"])
     )
     slo_res = (
-        _row("SLO TTFT", f'<= {slo["slo_ttft"]}s')
-        + _row("SLO TPOT", f'<= {slo["slo_tpot"]}s')
-        + _row("SLO E2E", f'<= {slo["slo_e2e"]}s')
+        _row("SLO TTFT", f"<= {slo['slo_ttft']}s")
+        + _row("SLO TPOT", f"<= {slo['slo_tpot']}s")
+        + _row("SLO E2E", f"<= {slo['slo_e2e']}s")
         + _row("Max Error Rate", slo["max_error_rate"])
         + _row("Min Success Rate", slo["min_success_rate"])
         + _row("SLO Gate Pass", parsed.get("slo_gate_pass", ""))
     )
-    elig = (
-        _row("Leaderboard Eligible", eligible)
-        + _row("Ineligible Reason", parsed["ineligible_reason"] or "—")
+    elig = _row("Leaderboard Eligible", eligible) + _row(
+        "Ineligible Reason", parsed["ineligible_reason"] or "—"
     )
 
     return f"""<!DOCTYPE html>
 <html lang="zh"><head><meta charset="utf-8">
-<title>Benchmark Report {html.escape(parsed['job_id'])}</title>
+<title>Benchmark Report {html.escape(parsed["job_id"])}</title>
 <style>
 body{{font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;margin:24px;color:#202124;background:#f8f9fa}}
 h1{{font-size:22px}} h2{{font-size:16px;margin:18px 0 6px;border-left:4px solid #1a73e8;padding-left:8px}}
@@ -194,9 +222,9 @@ th{{background:#f1f3f4;width:240px}}
 {sec("SLO Result", slo_res)}
 {sec("Leaderboard Eligibility", elig)}
 <section><h2>Links</h2><div class="links">
-<a href="/reports/{html.escape(parsed['job_id'])}.json">JSON</a>
-<a href="/reports/{html.escape(parsed['job_id'])}.csv">CSV</a>
-<a href="/jobs/{html.escape(parsed['job_id'])}">Job Detail</a>
+<a href="/reports/{html.escape(parsed["job_id"])}.json">JSON</a>
+<a href="/reports/{html.escape(parsed["job_id"])}.csv">CSV</a>
+<a href="/jobs/{html.escape(parsed["job_id"])}">Job Detail</a>
 </div></section>
 </body></html>"""
 

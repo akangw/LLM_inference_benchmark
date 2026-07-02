@@ -3,12 +3,12 @@
 被 Web 后台线程和 CLI 共同调用。runner 分发：优先 guidellm（若可用且支持），
 否则回落 custom_http_runner（主路径）。api_key 只在内存使用，不写日志/不入库。
 """
+
 from __future__ import annotations
 
 import asyncio
 import json
 import os
-import sys
 import time
 import traceback
 
@@ -22,6 +22,7 @@ from .parser import build_parsed_result, to_results_row
 
 class _Tee:
     """同时写文件与内存（用于 stdout/stderr 落盘）。"""
+
     def __init__(self, path):
         self.f = open(path, "w", encoding="utf-8")
 
@@ -43,7 +44,10 @@ def _decide_runner(endpoint_type: str) -> tuple[str, str]:
     if ok:
         # MVP：guidellm 可用也优先用 custom_http 以保证精确 per-request 指标与一致性。
         # 仍记录 guidellm 可用信息，便于后续切换。
-        return "custom_http", f"guidellm 可用({info})，MVP 默认用 custom_http 保证精确逐请求指标"
+        return (
+            "custom_http",
+            f"guidellm 可用({info})，MVP 默认用 custom_http 保证精确逐请求指标",
+        )
     return "custom_http", f"guidellm 不可用({info})，回落 custom_http"
 
 
@@ -72,8 +76,9 @@ def execute_job(job: dict, api_key: str | None) -> dict:
     request_timeout = job["request_timeout"]
     dataset_profile = job["dataset_profile"]
 
-    db.update_job(job_id, status=Status.RUNNING, run_status=RunStatus.RUNNING,
-                  started_at=db.now())
+    db.update_job(
+        job_id, status=Status.RUNNING, run_status=RunStatus.RUNNING, started_at=db.now()
+    )
 
     # config.json（不含 api_key）
     config_dump = {
@@ -104,8 +109,10 @@ def execute_job(job: dict, api_key: str | None) -> dict:
         # ── 1. 健康检查 /models ──
         models = asyncio.run(custom_http_runner.check_models(base_url, api_key))
         raw_payload["models_check"] = models
-        stdout.log(f"/models 检查: status={models['status']} http={models['http_status']} "
-                   f"models={models.get('models')}")
+        stdout.log(
+            f"/models 检查: status={models['status']} http={models['http_status']} "
+            f"models={models.get('models')}"
+        )
         if models["status"] != "success":
             stdout.log(f"/models 不可访问（{models.get('error')}），仍尝试 smoke 探测")
 
@@ -119,14 +126,23 @@ def execute_job(job: dict, api_key: str | None) -> dict:
         stdout.log(f"数据集加载: profile={dataset_profile} 使用 {len(prompts)} 条")
 
         # ── 3. stream 探测 ──
-        smoke = asyncio.run(custom_http_runner.smoke_request(
-            base_url, endpoint_type, model_name, prompts[0]["prompt"], api_key,
-            max_tokens=16, timeout=min(request_timeout, 60),
-        ))
+        smoke = asyncio.run(
+            custom_http_runner.smoke_request(
+                base_url,
+                endpoint_type,
+                model_name,
+                prompts[0]["prompt"],
+                api_key,
+                max_tokens=16,
+                timeout=min(request_timeout, 60),
+            )
+        )
         stream_supported = bool(smoke.streamed and smoke.success)
         raw_payload["smoke"] = smoke.to_dict()
-        stdout.log(f"stream 探测: success={smoke.success} streamed={smoke.streamed} "
-                   f"status={smoke.status_code} err={smoke.error_message}")
+        stdout.log(
+            f"stream 探测: success={smoke.success} streamed={smoke.streamed} "
+            f"status={smoke.status_code} err={smoke.error_message}"
+        )
 
         if not smoke.success:
             # smoke 直接失败 -> 任务 failed，记录明确原因，不伪造成功
@@ -134,17 +150,28 @@ def execute_job(job: dict, api_key: str | None) -> dict:
             raise RuntimeError(f"smoke 请求失败: {msg}")
 
         # ── 4. 正式 benchmark ──
-        stdout.log(f"开始 benchmark: requests={n} concurrency={concurrency} stream_supported={stream_supported}")
+        stdout.log(
+            f"开始 benchmark: requests={n} concurrency={concurrency} stream_supported={stream_supported}"
+        )
         result = custom_http_runner.run_benchmark(
-            base_url=base_url, endpoint_type=endpoint_type, model_name=model_name,
-            prompts=prompts, concurrency=concurrency, max_output_tokens=max_output_tokens,
-            temperature=temperature, top_p=top_p, request_timeout=float(request_timeout),
-            api_key=api_key, stream_supported=stream_supported,
+            base_url=base_url,
+            endpoint_type=endpoint_type,
+            model_name=model_name,
+            prompts=prompts,
+            concurrency=concurrency,
+            max_output_tokens=max_output_tokens,
+            temperature=temperature,
+            top_p=top_p,
+            request_timeout=float(request_timeout),
+            api_key=api_key,
+            stream_supported=stream_supported,
         )
         result.runner_name = runner_name
         n_ok = sum(1 for r in result.records if r.success)
-        stdout.log(f"benchmark 完成: {n_ok}/{len(result.records)} 成功, "
-                   f"有效时长={result.effective_duration:.2f}s")
+        stdout.log(
+            f"benchmark 完成: {n_ok}/{len(result.records)} 成功, "
+            f"有效时长={result.effective_duration:.2f}s"
+        )
 
         # ── 5. 落盘 raw + per-request ──
         with open(os.path.join(run_dir, "raw_result.json"), "w", encoding="utf-8") as f:
@@ -153,11 +180,19 @@ def execute_job(job: dict, api_key: str | None) -> dict:
 
         # ── 6. 解析 + eligibility ──
         parsed = build_parsed_result(
-            job_id=job_id, endpoint_type=endpoint_type, model_name=model_name,
-            base_url_masked=mask_base_url(base_url), benchmark_mode=mode,
-            dataset_profile=dataset_profile, total_requests=total_requests,
-            concurrency=concurrency, max_output_tokens=max_output_tokens,
-            temperature=temperature, top_p=top_p, result=result, completed=True,
+            job_id=job_id,
+            endpoint_type=endpoint_type,
+            model_name=model_name,
+            base_url_masked=mask_base_url(base_url),
+            benchmark_mode=mode,
+            dataset_profile=dataset_profile,
+            total_requests=total_requests,
+            concurrency=concurrency,
+            max_output_tokens=max_output_tokens,
+            temperature=temperature,
+            top_p=top_p,
+            result=result,
+            completed=True,
         )
         parsed["created_at"] = db.now()
 
@@ -166,7 +201,9 @@ def execute_job(job: dict, api_key: str | None) -> dict:
         csv_path = reports.write_csv(run_dir, parsed)
         html_path = reports.write_report_html(run_dir, parsed, job)
         paths = {
-            "json": json_path, "csv": csv_path, "html": html_path,
+            "json": json_path,
+            "csv": csv_path,
+            "html": html_path,
             "raw": os.path.join(run_dir, "raw_result.json"),
         }
 
@@ -174,13 +211,17 @@ def execute_job(job: dict, api_key: str | None) -> dict:
         row = to_results_row(parsed, paths)
         db.insert_result(row)
         db.update_job(
-            job_id, status=Status.SUCCESS, run_status=parsed["run_status"],
+            job_id,
+            status=Status.SUCCESS,
+            run_status=parsed["run_status"],
             finished_at=db.now(),
             leaderboard_eligible=1 if parsed["leaderboard_eligible"] else 0,
             ineligible_reason=parsed["ineligible_reason"],
         )
-        stdout.log(f"任务完成: run_status={parsed['run_status']} "
-                   f"eligible={parsed['leaderboard_eligible']}")
+        stdout.log(
+            f"任务完成: run_status={parsed['run_status']} "
+            f"eligible={parsed['leaderboard_eligible']}"
+        )
         stdout.close()
         stderr.close()
         return parsed
@@ -191,13 +232,18 @@ def execute_job(job: dict, api_key: str | None) -> dict:
         stderr.log(tb)
         # 落盘已有 raw_payload，便于排查
         try:
-            with open(os.path.join(run_dir, "raw_result.json"), "w", encoding="utf-8") as f:
+            with open(
+                os.path.join(run_dir, "raw_result.json"), "w", encoding="utf-8"
+            ) as f:
                 json.dump(raw_payload, f, ensure_ascii=False, indent=2)
         except Exception:
             pass
         db.update_job(
-            job_id, status=Status.FAILED, run_status=RunStatus.FAILED,
-            finished_at=db.now(), error_message=f"{type(e).__name__}: {e}",
+            job_id,
+            status=Status.FAILED,
+            run_status=RunStatus.FAILED,
+            finished_at=db.now(),
+            error_message=f"{type(e).__name__}: {e}",
             leaderboard_eligible=0,
             ineligible_reason=f"任务失败: {e}",
         )

@@ -10,6 +10,7 @@ datasets<=3.6.0 冲突，guidellm 可能无法干净导入。自定义 runner �
 - 并发跑完整 benchmark，逐请求记录观测值
 - 统一返回 BenchmarkResult
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -33,7 +34,9 @@ def _approx_tokens(text: str) -> int:
     return max(by_char, by_word)
 
 
-async def check_models(base_url: str, api_key: str | None, timeout: float = 10.0) -> dict:
+async def check_models(
+    base_url: str, api_key: str | None, timeout: float = 10.0
+) -> dict:
     """GET {base_url}/models。返回 {status, http_status, models, error}。"""
     headers = {}
     if api_key:
@@ -47,7 +50,9 @@ async def check_models(base_url: str, api_key: str | None, timeout: float = 10.0
                 out["status"] = "success"
                 try:
                     data = resp.json()
-                    out["models"] = [m.get("id") for m in data.get("data", []) if isinstance(m, dict)]
+                    out["models"] = [
+                        m.get("id") for m in data.get("data", []) if isinstance(m, dict)
+                    ]
                 except Exception:
                     pass
             else:
@@ -62,7 +67,7 @@ def _parse_stream_line(line: str) -> dict | None:
     if not line:
         return None
     if line.startswith("data:"):
-        line = line[len("data:"):].strip()
+        line = line[len("data:") :].strip()
     else:
         return None
     if line == "[DONE]" or not line:
@@ -88,7 +93,9 @@ def _extract_delta_text(obj: dict, endpoint_type: str) -> str:
 
 def _extract_usage(obj: dict) -> dict | None:
     u = obj.get("usage")
-    if isinstance(u, dict) and (u.get("completion_tokens") is not None or u.get("prompt_tokens") is not None):
+    if isinstance(u, dict) and (
+        u.get("completion_tokens") is not None or u.get("prompt_tokens") is not None
+    ):
         return u
     return None
 
@@ -109,7 +116,9 @@ async def _one_request(
     n_chunks = 0
     usage = None
     try:
-        async with client.stream("POST", url, headers=headers, json=payload, timeout=timeout) as resp:
+        async with client.stream(
+            "POST", url, headers=headers, json=payload, timeout=timeout
+        ) as resp:
             rec.status_code = resp.status_code
             if resp.status_code != 200:
                 body = (await resp.aread()).decode("utf-8", "replace")[:300]
@@ -139,7 +148,9 @@ async def _one_request(
         full_text = "".join(text_parts)
         # token 统计：优先 usage，否则近似
         if usage:
-            rec.output_tokens = int(usage.get("completion_tokens") or 0) or _approx_tokens(full_text)
+            rec.output_tokens = int(
+                usage.get("completion_tokens") or 0
+            ) or _approx_tokens(full_text)
             rec.prompt_tokens = int(usage.get("prompt_tokens") or 0)
         else:
             rec.output_tokens = _approx_tokens(full_text)
@@ -189,9 +200,13 @@ async def smoke_request(
     headers = {"Content-Type": "application/json"}
     if api_key:
         headers["Authorization"] = f"Bearer {api_key}"
-    payload = build_payload(endpoint_type, model_name, prompt, max_tokens, 0.0, 1.0, True)
+    payload = build_payload(
+        endpoint_type, model_name, prompt, max_tokens, 0.0, 1.0, True
+    )
     async with httpx.AsyncClient(timeout=timeout) as client:
-        return await _one_request(client, "smoke", url, headers, payload, endpoint_type, timeout)
+        return await _one_request(
+            client, "smoke", url, headers, payload, endpoint_type, timeout
+        )
 
 
 async def run_benchmark_async(
@@ -215,18 +230,27 @@ async def run_benchmark_async(
 
     sem = asyncio.Semaphore(max(1, concurrency))
     records: list[RequestRecord] = []
-    limits = httpx.Limits(max_connections=concurrency + 5, max_keepalive_connections=concurrency + 5)
+    limits = httpx.Limits(
+        max_connections=concurrency + 5, max_keepalive_connections=concurrency + 5
+    )
 
     async with httpx.AsyncClient(timeout=request_timeout, limits=limits) as client:
+
         async def worker(idx: int, item: dict) -> RequestRecord:
             async with sem:
                 payload = build_payload(
-                    endpoint_type, model_name, item["prompt"],
+                    endpoint_type,
+                    model_name,
+                    item["prompt"],
                     item.get("max_tokens", max_output_tokens),
-                    temperature, top_p, True,
+                    temperature,
+                    top_p,
+                    True,
                 )
                 rid = item.get("id", f"req_{idx:06d}")
-                return await _one_request(client, rid, url, headers, payload, endpoint_type, request_timeout)
+                return await _one_request(
+                    client, rid, url, headers, payload, endpoint_type, request_timeout
+                )
 
         wall_start = time.monotonic()
         tasks = [asyncio.create_task(worker(i, it)) for i, it in enumerate(prompts)]

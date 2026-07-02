@@ -10,6 +10,7 @@
   python benchmark_cli.py export --job-id <job_id> --format json|html|csv
   python benchmark_cli.py leaderboard --endpoint-type chat_completions --format table|json|csv
 """
+
 from __future__ import annotations
 
 import argparse
@@ -43,15 +44,21 @@ def cmd_submit(args) -> int:
         return 2
     # 同步执行后重新取最新状态
     final = db.get_job(job["id"])
-    print(json.dumps({
-        "job_id": final["id"],
-        "status": final["status"],
-        "run_status": final["run_status"],
-        "leaderboard_eligible": bool(final["leaderboard_eligible"]),
-        "ineligible_reason": final["ineligible_reason"],
-        "error_message": final["error_message"],
-        "run_dir": os.path.join("runs", final["id"]),
-    }, ensure_ascii=False, indent=2))
+    print(
+        json.dumps(
+            {
+                "job_id": final["id"],
+                "status": final["status"],
+                "run_status": final["run_status"],
+                "leaderboard_eligible": bool(final["leaderboard_eligible"]),
+                "ineligible_reason": final["ineligible_reason"],
+                "error_message": final["error_message"],
+                "run_dir": os.path.join("runs", final["id"]),
+            },
+            ensure_ascii=False,
+            indent=2,
+        )
+    )
     return 0 if final["status"] == "success" else 1
 
 
@@ -69,19 +76,23 @@ def cmd_status(args) -> int:
 def cmd_export(args) -> int:
     db.init_db()
     fmt = args.format
-    fname = {"json": "parsed_result.json", "html": "report.html", "csv": "result.csv"}[fmt]
+    fname = {"json": "parsed_result.json", "html": "report.html", "csv": "result.csv"}[
+        fmt
+    ]
     path = os.path.join(RUNS_DIR, args.job_id, fname)
     if not os.path.exists(path):
         print(f"[export] 文件不存在: {path}", file=sys.stderr)
         return 2
-    with open(path, "r", encoding="utf-8") as f:
+    with open(path, encoding="utf-8") as f:
         sys.stdout.write(f.read())
     return 0
 
 
 def cmd_leaderboard(args) -> int:
     db.init_db()
-    rows = db.leaderboard_rows(args.endpoint_type, eligible_only=not args.include_ineligible)
+    rows = db.leaderboard_rows(
+        args.endpoint_type, eligible_only=not args.include_ineligible
+    )
     if args.format == "json":
         for i, r in enumerate(rows, 1):
             r["rank"] = i
@@ -92,15 +103,17 @@ def cmd_leaderboard(args) -> int:
         if not rows:
             print("（暂无榜单结果）")
             return 0
-        hdr = f'{"#":<3}{"model":<16}{"goodput_out/s":>14}{"goodput_req/s":>14}{"p95_ttft":>10}{"p95_tpot":>10}{"err":>7}'
+        hdr = f"{'#':<3}{'model':<16}{'goodput_out/s':>14}{'goodput_req/s':>14}{'p95_ttft':>10}{'p95_tpot':>10}{'err':>7}"
         print(hdr)
         print("-" * len(hdr))
         for i, r in enumerate(rows, 1):
-            print(f'{i:<3}{str(r["model_name"])[:15]:<16}'
-                  f'{r["goodput_output_tokens_per_second"]:>14.3f}'
-                  f'{r["goodput_requests_per_second"]:>14.3f}'
-                  f'{r["p95_ttft"]:>10.3f}{r["p95_tpot"]:>10.4f}'
-                  f'{r["error_rate"]:>7.3f}')
+            print(
+                f"{i:<3}{str(r['model_name'])[:15]:<16}"
+                f"{r['goodput_output_tokens_per_second']:>14.3f}"
+                f"{r['goodput_requests_per_second']:>14.3f}"
+                f"{r['p95_ttft']:>10.3f}{r['p95_tpot']:>10.4f}"
+                f"{r['error_rate']:>7.3f}"
+            )
     return 0
 
 
@@ -109,11 +122,17 @@ def build_parser() -> argparse.ArgumentParser:
     sub = p.add_subparsers(dest="cmd", required=True)
 
     s = sub.add_parser("submit", help="提交并运行一个 benchmark 任务")
-    s.add_argument("--endpoint-type", required=True, choices=["chat_completions", "completions"])
+    s.add_argument(
+        "--endpoint-type", required=True, choices=["chat_completions", "completions"]
+    )
     s.add_argument("--model-name", required=True)
     s.add_argument("--base-url", default=None, help="如 http://127.0.0.1:8010/v1")
-    s.add_argument("--port", default=None, help="只填端口，自动转 http://127.0.0.1:<port>/v1")
-    s.add_argument("--mode", default="smoke", choices=["smoke", "public_leaderboard", "stress"])
+    s.add_argument(
+        "--port", default=None, help="只填端口，自动转 http://127.0.0.1:<port>/v1"
+    )
+    s.add_argument(
+        "--mode", default="smoke", choices=["smoke", "public_leaderboard", "stress"]
+    )
     s.add_argument("--dataset-profile", default="llmperf_550_150")
     s.add_argument("--api-key", default=None, help="可选；也可用环境变量 BENCH_API_KEY")
     s.add_argument("--notes", default=None)
@@ -129,9 +148,13 @@ def build_parser() -> argparse.ArgumentParser:
     e.set_defaults(func=cmd_export)
 
     lb = sub.add_parser("leaderboard", help="查看排行榜")
-    lb.add_argument("--endpoint-type", required=True, choices=["chat_completions", "completions"])
+    lb.add_argument(
+        "--endpoint-type", required=True, choices=["chat_completions", "completions"]
+    )
     lb.add_argument("--format", default="table", choices=["table", "json", "csv"])
-    lb.add_argument("--include-ineligible", action="store_true", help="也展示未进榜结果")
+    lb.add_argument(
+        "--include-ineligible", action="store_true", help="也展示未进榜结果"
+    )
     lb.set_defaults(func=cmd_leaderboard)
     return p
 
