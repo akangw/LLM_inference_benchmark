@@ -151,7 +151,9 @@ RUNS = [
 
 
 def run(cmd, cwd=None, timeout=900):
-    r = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True, timeout=timeout)
+    r = subprocess.run(
+        cmd, cwd=cwd, capture_output=True, text=True, timeout=timeout, check=False
+    )
     return r.returncode, r.stdout + r.stderr
 
 

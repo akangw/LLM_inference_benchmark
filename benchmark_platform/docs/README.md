@@ -6,7 +6,7 @@
 
 技术栈：FastAPI + SQLite + Jinja2 + 自定义 httpx 流式 runner。除可选的 guidellm 探测外，核心仅依赖标准库 + httpx。
 
----
+______________________________________________________________________
 
 ## 目录结构
 
@@ -23,7 +23,7 @@ benchmark_platform/
 └── benchmark_platform.db # SQLite 库（运行时生成）
 ```
 
----
+______________________________________________________________________
 
 ## 环境准备
 
@@ -48,7 +48,7 @@ TOKENIZER=/path/to/Qwen3-32B-W8A8 $PY benchmark_assets/scripts/build_llmperf_550
 
 生成 `benchmark_assets/text/llmperf_550_150.jsonl`（150 条，seed=0，确定性，固化复用）。
 
----
+______________________________________________________________________
 
 ## 使用方式一：网页
 
@@ -57,29 +57,29 @@ $PY -m uvicorn app.main:app --host 0.0.0.0 --port 8088
 # 浏览器打开 http://<本机IP>:8088/submit
 ```
 
-| 页面 | 说明 |
-|---|---|
-| `/submit` | 提交 benchmark 任务 |
-| `/jobs` | 任务列表 |
-| `/jobs/{id}` | 任务详情（配置、指标、SLO、产物下载链接） |
-| `/leaderboard` | 排行榜入口 |
-| `/leaderboard/chat_completions` | Chat 榜 |
-| `/leaderboard/completions` | Completions 榜 |
+| 页面                            | 说明                                      |
+| ------------------------------- | ----------------------------------------- |
+| `/submit`                       | 提交 benchmark 任务                       |
+| `/jobs`                         | 任务列表                                  |
+| `/jobs/{id}`                    | 任务详情（配置、指标、SLO、产物下载链接） |
+| `/leaderboard`                  | 排行榜入口                                |
+| `/leaderboard/chat_completions` | Chat 榜                                   |
+| `/leaderboard/completions`      | Completions 榜                            |
 
 **提交示例**（本地 qwen32b on 910B）：
 
-| 字段 | 值 |
-|---|---|
-| Endpoint 类型 | `chat_completions` |
-| model_name | `qwen32b`（服务实际 served name） |
-| Base URL | `http://127.0.0.1:8010/v1`，**或**只填端口 `8010` |
-| Benchmark 模式 | `smoke`（先验证）/ `public_leaderboard`（进榜） |
-| 数据集 | `llmperf_550_150` |
-| Notes | `engine: vLLM; hardware: 4x910B; quant: W8A8` |
+| 字段           | 值                                                |
+| -------------- | ------------------------------------------------- |
+| Endpoint 类型  | `chat_completions`                                |
+| model_name     | `qwen32b`（服务实际 served name）                 |
+| Base URL       | `http://127.0.0.1:8010/v1`，**或**只填端口 `8010` |
+| Benchmark 模式 | `smoke`（先验证）/ `public_leaderboard`（进榜）   |
+| 数据集         | `llmperf_550_150`                                 |
+| Notes          | `engine: vLLM; hardware: 4x910B; quant: W8A8`     |
 
 提交后自动跳转 `/jobs/{job_id}`，刷新查看状态与指标。
 
----
+______________________________________________________________________
 
 ## 使用方式二：命令行（CLI）
 
@@ -122,7 +122,7 @@ $PY benchmark_cli.py leaderboard --endpoint-type completions      --format json
 $PY benchmark_cli.py leaderboard --endpoint-type chat_completions --format csv
 ```
 
----
+______________________________________________________________________
 
 ## HTTP API（机器可读）
 
@@ -135,21 +135,22 @@ GET /api/leaderboard/{type}.json  # 排行榜 JSON
 GET /api/leaderboard/{type}.csv   # 排行榜 CSV
 GET /healthz                      # 健康检查 {"status":"ok"}
 ```
+
 `{type}` 为 `chat_completions` 或 `completions`。
 
----
+______________________________________________________________________
 
 ## Benchmark 模式
 
-| 模式 | 请求数 | 并发 | 进榜 | 用途 |
-|---|---|---|---|---|
-| `smoke` | 3 | 1 | ❌ | 快速验证 endpoint 可用 |
-| `public_leaderboard` | 150 | 5 | ✅ | 正式榜单 |
-| `stress` | 150 | 10 | ❌ | 压力探测 |
+| 模式                 | 请求数 | 并发 | 进榜 | 用途                   |
+| -------------------- | ------ | ---- | ---- | ---------------------- |
+| `smoke`              | 3      | 1    | ❌   | 快速验证 endpoint 可用 |
+| `public_leaderboard` | 150    | 5    | ✅   | 正式榜单               |
+| `stress`             | 150    | 10   | ❌   | 压力探测               |
 
 `smoke` / `stress` 仍产出完整 JSON/HTML/CSV 报告并可在 `/jobs/{id}` 查看，只是不进榜。
 
----
+______________________________________________________________________
 
 ## 评分与进榜规则
 
@@ -159,23 +160,23 @@ GET /healthz                      # 健康检查 {"status":"ok"}
 - **进榜条件**（须全满足）：`public_leaderboard` 模式 + `llmperf_550_150` 数据集 + 150 请求 + 并发 5 + max_tokens 150 + temperature 0 + top_p 1 + stream 真生效 + 完整结束 + err ≤ 1% + succ ≥ 99%。任何偏离都给出明确 `ineligible_reason`。
 - Chat 与 Completions **分别独立成榜**，不混合。
 
----
+______________________________________________________________________
 
 ## 产物文件
 
 每个任务在 `runs/<job_id>/` 下生成：
 
-| 文件 | 内容 |
-|---|---|
-| `config.json` | 任务配置（含 `api_key_provided` 布尔，**不含 key 明文**） |
-| `stdout.log` / `stderr.log` | 执行日志 |
-| `raw_result.json` | runner 选择、健康检查、smoke 探测原始信息 |
-| `parsed_result.json` | 解析后的完整指标 + eligibility + run_status |
-| `per_request_metrics.jsonl` | 逐请求 TTFT/TPOT/E2E/token/状态 |
-| `result.csv` | 固定列序的结果表 |
-| `report.html` | 自包含可视化报告 |
+| 文件                        | 内容                                                      |
+| --------------------------- | --------------------------------------------------------- |
+| `config.json`               | 任务配置（含 `api_key_provided` 布尔，**不含 key 明文**） |
+| `stdout.log` / `stderr.log` | 执行日志                                                  |
+| `raw_result.json`           | runner 选择、健康检查、smoke 探测原始信息                 |
+| `parsed_result.json`        | 解析后的完整指标 + eligibility + run_status               |
+| `per_request_metrics.jsonl` | 逐请求 TTFT/TPOT/E2E/token/状态                           |
+| `result.csv`                | 固定列序的结果表                                          |
+| `report.html`               | 自包含可视化报告                                          |
 
----
+______________________________________________________________________
 
 ## 没有真实服务时：用 mock 跑通全流程（自检）
 
@@ -189,13 +190,13 @@ $PY benchmark_cli.py submit --endpoint-type chat_completions \
   --port 8011 --model-name qwen32b-mock --mode public_leaderboard
 ```
 
----
+______________________________________________________________________
 
 ## 多场景编排（可选）
 
 `scripts/run_three_benchmarks.py`、`scripts/run_three_reliable.py` 演示了「启动 vLLM → 跑榜 → 释放显存」的三档参数顺序编排。这些脚本依赖外部 `autotune` 环境的 `start_service.sh` / `stop_service.sh`（脚本内 `AUTOTUNE` 常量需按实际部署环境填写），仅作参考。
 
----
+______________________________________________________________________
 
 ## 安全与鲁棒性
 
@@ -204,7 +205,7 @@ $PY benchmark_cli.py submit --endpoint-type chat_completions \
 - **优雅失败**：任何阶段失败都落盘错误原因并把任务标 `failed`，**绝不伪造成功**；失败任务隔离，不影响 Web 与其他任务。
 - **base_url / port 校验**：非法端口在提交阶段即拒绝。
 
----
+______________________________________________________________________
 
 ## 已知限制
 

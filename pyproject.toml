@@ -194,7 +194,9 @@ ignore_missing_imports = true
 target-version = "py310"
 line-length = 88
 indent-width = 4
-exclude = ["build", "dist", "env", ".venv*"]
+# benchmark_platform/ is a standalone subsystem with its own conventions
+# (CLI print, os.path, relative imports) — not subject to guidellm's ruleset.
+exclude = ["build", "dist", "env", ".venv*", "benchmark_platform"]
 
 [tool.ruff.format]
 quote-style = "double"

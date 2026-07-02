@@ -160,7 +160,7 @@ SCENARIOS = [
 def run(cmd: list[str], cwd: str | None = None, timeout: int = 900) -> tuple[int, str]:
     """运行命令，返回 (exit_code, stdout+stderr)。"""
     result = subprocess.run(
-        cmd, cwd=cwd, capture_output=True, text=True, timeout=timeout
+        cmd, cwd=cwd, capture_output=True, text=True, timeout=timeout, check=False
     )
     out = result.stdout + result.stderr
     return result.returncode, out
