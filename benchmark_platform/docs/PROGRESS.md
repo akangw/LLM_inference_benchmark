@@ -1,7 +1,7 @@
 # PROGRESS.md — Loop Harness 进展
 
 平台：自带端点的大模型服务 benchmark 平台 MVP（FastAPI + SQLite + Jinja2 + 自定义 HTTP runner）。
-工作目录：`/home/u_5f35688a99/autotune/guidellm`。
+工作目录：仓库的 `benchmark_platform/` 目录。
 
 每轮：Inspect → Plan → Implement → Run → Verify → Record → Next。
 

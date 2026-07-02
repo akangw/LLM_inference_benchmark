@@ -22,11 +22,16 @@ import os
 import subprocess
 import sys
 import time
+from os.path import abspath, dirname
 
-PY       = "/usr/local/python3.11.14/bin/python3.11"
+PY = "/usr/local/python3.11.14/bin/python3.11"
+# 自动定位本仓库 benchmark_platform/ 目录（脚本在 benchmark_platform/scripts/ 下）
+PLATFORM = dirname(dirname(abspath(__file__)))
+CLI = f"{PLATFORM}/benchmark_cli.py"
+
+# 外部 autotune 环境目录（包含 start_service.sh / stop_service.sh）
+# 需按实际部署环境填写，与本仓库位置无关
 AUTOTUNE = "/home/u_5f35688a99/autotune"
-GUIDELLM = "/home/u_5f35688a99/autotune/guidellm"
-CLI      = f"{GUIDELLM}/benchmark_cli.py"
 
 SCENARIOS = [
     {
@@ -222,7 +227,7 @@ def main() -> int:
             "--mode",          "public_leaderboard",
             "--notes",         notes,
         ]
-        rc_b, out_b = run(bench_cmd, cwd=GUIDELLM, timeout=900)
+        rc_b, out_b = run(bench_cmd, cwd=PLATFORM, timeout=900)
         # 去掉 torch_npu 告警
         clean = "\n".join(l for l in out_b.splitlines()
                           if "Warning" not in l and "warnings.warn" not in l)

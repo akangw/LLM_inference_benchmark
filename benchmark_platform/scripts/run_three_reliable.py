@@ -13,12 +13,18 @@
 """
 from __future__ import annotations
 import json, os, re, subprocess, sys, time
+from os.path import abspath, dirname
 
-PY       = "/usr/local/python3.11.14/bin/python3.11"
+PY = "/usr/local/python3.11.14/bin/python3.11"
+# 自动定位本仓库 benchmark_platform/ 目录（脚本在 benchmark_platform/scripts/ 下）
+PLATFORM = dirname(dirname(abspath(__file__)))
+CLI = f"{PLATFORM}/benchmark_cli.py"
+
+# 外部 autotune 环境目录（包含 start_service.sh / stop_service.sh）
+# 需按实际部署环境填写，与本仓库位置无关
 AUTOTUNE = "/home/u_5f35688a99/autotune"
-GUIDELLM = "/home/u_5f35688a99/autotune/guidellm"
-CLI      = f"{GUIDELLM}/benchmark_cli.py"
-LOG      = "/tmp/three_bench_v2.log"
+
+LOG = "/tmp/three_bench_v2.log"
 
 RUNS = [
     {
@@ -156,7 +162,7 @@ def main():
              "--model-name", "qwen3-32b-w8a8",
              "--mode", "public_leaderboard",
              "--notes", notes],
-            cwd=GUIDELLM, timeout=900,
+            cwd=PLATFORM, timeout=900,
         )
         clean = "\n".join(l for l in out_b.splitlines()
                           if not any(k in l for k in ["Warning", "warnings.warn", "_owner"]))

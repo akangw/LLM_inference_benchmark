@@ -1,13 +1,15 @@
 # LLM 服务 Benchmark 平台 · 使用模板
 
 > 一步步照抄即可。平台只测**已启动的 OpenAI 兼容服务**,不托管模型、不要权重/路径。
-> 代码在 `/home/u_5f35688a99/autotune/guidellm`,详版文档见该目录 `README_BENCHMARK_PLATFORM.md`。
+> 代码在仓库的 `benchmark_platform/` 目录,详版文档见 `benchmark_platform/docs/README.md`。
 
 环境:`/usr/local/python3.11.14/bin/python3.11`(下文简称 `PY`)。
 
+**所有命令均在 `benchmark_platform/` 目录下执行**：
+
 ```bash
 export PY=/usr/local/python3.11.14/bin/python3.11
-cd /home/u_5f35688a99/autotune/guidellm
+cd benchmark_platform  # 进入平台目录
 ```
 
 ---
